@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Deriv AI Market Analyst"
+version = "1.0.0"
+id = "artifacts/deriv-analyst"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22137
+
+[services.development]
+run = "pnpm --filter @workspace/deriv-analyst run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/deriv-analyst", "run", "build" ]
+publicDir = "artifacts/deriv-analyst/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22137"
+BASE_PATH = "/"

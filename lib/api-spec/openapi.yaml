@@ -1,22 +1,33 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Deriv AI Market Analysis API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: market
+    description: Market data and candles
+  - name: indicators
+    description: Technical indicator values
+  - name: analysis
+    description: AI analysis and predictions
+  - name: predictions
+    description: Stored predictions and outcomes
+  - name: memory
+    description: AI learning memory
+  - name: ai
+    description: AI inference and status
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +35,628 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /market/symbols:
+    get:
+      operationId: getMarketSymbols
+      tags: [market]
+      summary: Get available market symbols
+      responses:
+        "200":
+          description: List of available symbols
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketSymbol"
+
+  /market/candles:
+    get:
+      operationId: getCandles
+      tags: [market]
+      summary: Get historical candles for a symbol
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: granularity
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 60
+        - name: count
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: Candle data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Candle"
+
+  /market/ticks:
+    get:
+      operationId: getRecentTicks
+      tags: [market]
+      summary: Get recent ticks for a symbol
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: count
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Tick data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tick"
+
+  /market/summary:
+    get:
+      operationId: getMarketSummary
+      tags: [market]
+      summary: Get live market summary with all key metrics for a symbol
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Market summary with trend, volatility, momentum
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketSummary"
+
+  /indicators:
+    get:
+      operationId: getSymbolIndicators
+      tags: [indicators]
+      summary: Get all technical indicator values for a symbol
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: granularity
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 60
+      responses:
+        "200":
+          description: All indicator values
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndicatorSet"
+
+  /analysis/generate:
+    post:
+      operationId: generateAnalysis
+      tags: [analysis]
+      summary: Generate AI analysis for a symbol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisRequest"
+      responses:
+        "200":
+          description: AI analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisResult"
+
+  /analysis/latest:
+    get:
+      operationId: getLatestAnalysis
+      tags: [analysis]
+      summary: Get the latest cached AI analysis for a symbol
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Latest analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisResult"
+        "404":
+          description: No analysis found
+
+  /analysis/history:
+    get:
+      operationId: getAnalysisHistory
+      tags: [analysis]
+      summary: Get analysis history for a symbol
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Analysis history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnalysisResult"
+
+  /predictions:
+    get:
+      operationId: getPredictions
+      tags: [predictions]
+      summary: Get prediction records
+      parameters:
+        - name: symbol
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of predictions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Prediction"
+    post:
+      operationId: createPrediction
+      tags: [predictions]
+      summary: Store a new prediction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictionInput"
+      responses:
+        "201":
+          description: Created prediction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prediction"
+
+  /predictions/{id}/outcome:
+    patch:
+      operationId: updatePredictionOutcome
+      tags: [predictions]
+      summary: Record the outcome of a prediction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OutcomeUpdate"
+      responses:
+        "200":
+          description: Updated prediction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prediction"
+
+  /predictions/accuracy:
+    get:
+      operationId: getPredictionAccuracy
+      tags: [predictions]
+      summary: Get prediction accuracy stats per symbol
+      responses:
+        "200":
+          description: Accuracy statistics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccuracyStats"
+
+  /memory:
+    get:
+      operationId: getMemoryEntries
+      tags: [memory]
+      summary: Get AI learning memory entries
+      parameters:
+        - name: symbol
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Memory entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemoryEntry"
+
+  /memory/summary:
+    get:
+      operationId: getMemorySummary
+      tags: [memory]
+      summary: Get summarized learning insights from memory
+      parameters:
+        - name: symbol
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Memory summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemorySummary"
+
+  /ai/status:
+    get:
+      operationId: getAiStatus
+      tags: [ai]
+      summary: Check local AI server status
+      responses:
+        "200":
+          description: AI server status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiStatus"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    MarketSymbol:
+      type: object
+      required: [symbol, displayName, market, pip]
+      properties:
+        symbol:
+          type: string
+        displayName:
+          type: string
+        market:
+          type: string
+        pip:
+          type: number
+
+    Candle:
+      type: object
+      required: [epoch, open, high, low, close]
+      properties:
+        epoch:
+          type: integer
+        open:
+          type: number
+        high:
+          type: number
+        low:
+          type: number
+        close:
+          type: number
+        volume:
+          type: ["number", "null"]
+
+    Tick:
+      type: object
+      required: [epoch, price, symbol]
+      properties:
+        epoch:
+          type: integer
+        price:
+          type: number
+        symbol:
+          type: string
+        bid:
+          type: ["number", "null"]
+        ask:
+          type: ["number", "null"]
+
+    MarketSummary:
+      type: object
+      required: [symbol, currentPrice, trend, volatility, momentum, marketCondition, lastUpdated]
+      properties:
+        symbol:
+          type: string
+        currentPrice:
+          type: number
+        priceChange:
+          type: number
+        priceChangePct:
+          type: number
+        trend:
+          type: string
+          enum: [bullish, bearish, neutral, ranging]
+        volatility:
+          type: string
+          enum: [low, medium, high, extreme]
+        volatilityValue:
+          type: number
+        momentum:
+          type: string
+          enum: [strong_up, up, flat, down, strong_down]
+        marketCondition:
+          type: string
+          enum: [trending, ranging, reversing, uncertain]
+        supportLevel:
+          type: ["number", "null"]
+        resistanceLevel:
+          type: ["number", "null"]
+        spikeDetected:
+          type: boolean
+        reversalWarning:
+          type: boolean
+        lastUpdated:
+          type: integer
+
+    IndicatorSet:
+      type: object
+      required: [symbol, calculatedAt]
+      properties:
+        symbol:
+          type: string
+        calculatedAt:
+          type: integer
+        rsi:
+          type: ["number", "null"]
+        macdLine:
+          type: ["number", "null"]
+        macdSignal:
+          type: ["number", "null"]
+        macdHistogram:
+          type: ["number", "null"]
+        ema9:
+          type: ["number", "null"]
+        ema21:
+          type: ["number", "null"]
+        ema50:
+          type: ["number", "null"]
+        sma20:
+          type: ["number", "null"]
+        bollingerUpper:
+          type: ["number", "null"]
+        bollingerMiddle:
+          type: ["number", "null"]
+        bollingerLower:
+          type: ["number", "null"]
+        atr:
+          type: ["number", "null"]
+        stochasticK:
+          type: ["number", "null"]
+        stochasticD:
+          type: ["number", "null"]
+        trendStrength:
+          type: ["number", "null"]
+
+    AnalysisRequest:
+      type: object
+      required: [symbol]
+      properties:
+        symbol:
+          type: string
+        forceRefresh:
+          type: boolean
+
+    AnalysisResult:
+      type: object
+      required: [id, symbol, reasoning, riseProbability, fallProbability, confidence, marketCondition, signals, warnings, createdAt]
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        reasoning:
+          type: string
+        riseProbability:
+          type: number
+        fallProbability:
+          type: number
+        confidence:
+          type: number
+        marketCondition:
+          type: string
+        signals:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        aiModel:
+          type: ["string", "null"]
+        cached:
+          type: boolean
+        createdAt:
+          type: integer
+
+    PredictionInput:
+      type: object
+      required: [symbol, direction, confidence, entryPrice, indicators]
+      properties:
+        symbol:
+          type: string
+        direction:
+          type: string
+          enum: [rise, fall]
+        confidence:
+          type: number
+        entryPrice:
+          type: number
+        analysisId:
+          type: ["integer", "null"]
+        indicators:
+          type: object
+
+    Prediction:
+      type: object
+      required: [id, symbol, direction, confidence, entryPrice, createdAt]
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        direction:
+          type: string
+        confidence:
+          type: number
+        entryPrice:
+          type: number
+        exitPrice:
+          type: ["number", "null"]
+        outcome:
+          type: ["string", "null"]
+          enum: [correct, incorrect, null]
+        analysisId:
+          type: ["integer", "null"]
+        indicators:
+          type: object
+        resolvedAt:
+          type: ["integer", "null"]
+        createdAt:
+          type: integer
+
+    OutcomeUpdate:
+      type: object
+      required: [outcome, exitPrice]
+      properties:
+        outcome:
+          type: string
+          enum: [correct, incorrect]
+        exitPrice:
+          type: number
+
+    AccuracyStats:
+      type: object
+      required: [symbol, total, correct, incorrect, pending, accuracy]
+      properties:
+        symbol:
+          type: string
+        total:
+          type: integer
+        correct:
+          type: integer
+        incorrect:
+          type: integer
+        pending:
+          type: integer
+        accuracy:
+          type: number
+
+    MemoryEntry:
+      type: object
+      required: [id, symbol, patternType, patternData, outcome, createdAt]
+      properties:
+        id:
+          type: integer
+        symbol:
+          type: string
+        patternType:
+          type: string
+        patternData:
+          type: object
+        outcome:
+          type: string
+        accuracy:
+          type: ["number", "null"]
+        createdAt:
+          type: integer
+
+    MemorySummary:
+      type: object
+      required: [totalPatterns, avgAccuracy, topPatterns, recentLessons]
+      properties:
+        totalPatterns:
+          type: integer
+        avgAccuracy:
+          type: number
+        topPatterns:
+          type: array
+          items:
+            type: string
+        recentLessons:
+          type: array
+          items:
+            type: string
+
+    AiStatus:
+      type: object
+      required: [online, model, provider, responseTimeMs]
+      properties:
+        online:
+          type: boolean
+        model:
+          type: ["string", "null"]
+        provider:
+          type: ["string", "null"]
+        responseTimeMs:
+          type: ["integer", "null"]
+        error:
+          type: ["string", "null"]

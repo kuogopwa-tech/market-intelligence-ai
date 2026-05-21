@@ -1,0 +1,236 @@
+Build a smart AI-powered Deriv market analysis WEBSITE using React frontend and Node.js backend. This is a web dashboard system, not a mobile app.
+
+The system must run locally first using a GGUF AI model with llama.cpp or compatible local inference server:
+
+qwen2.5-3b-llm1-dpo.F16.Q4_K_M.gguf
+
+The architecture must later support online deployment without changing the core structure.
+
+MAIN GOAL:
+Create an intelligent trading analysis website for Deriv synthetic indices and forex that studies live market behavior, analyzes trends, learns from previous outcomes, and predicts possible rise or fall probabilities using technical analysis, volatility behavior, candle analysis, pattern recognition, and AI reasoning.
+
+IMPORTANT:
+This website is for market analysis and learning only.
+It must NOT place trades automatically or guarantee profits.
+
+CORE WEBSITE FEATURES:
+
+LIVE MARKET DASHBOARD
+Real-time charts
+Live tick updates
+Candle visualization
+Trend direction display
+Volatility meter
+Support/resistance zones
+Momentum analysis
+Spike detection
+Reversal warnings
+Market structure analysis
+DERIV API INTEGRATION
+Connect using Deriv WebSocket API
+Stream live market data
+Handle reconnect logic
+Store historical candles and ticks
+TECHNICAL ANALYSIS ENGINE
+Implement:
+RSI
+MACD
+EMA
+SMA
+Bollinger Bands
+ATR
+Stochastic
+Trend strength detection
+Volatility analysis
+Momentum confirmation
+AI ANALYSIS ENGINE
+The local Qwen GGUF model must:
+analyze current market conditions
+explain why market may rise or fall
+provide confidence percentages
+detect risky entries
+explain signals in simple language
+compare indicators together
+learn from previous prediction outcomes
+LEARNING MEMORY SYSTEM
+Create AI memory logic that:
+stores predictions
+stores actual outcomes
+measures accuracy
+tracks mistakes
+improves confidence logic over time
+learns repeating market patterns
+WEBSITE UI DESIGN
+Modern dark-theme trading dashboard with:
+TradingView-style charts
+AI reasoning panel
+prediction cards
+confidence meter
+live indicator values
+market condition labels
+analytics section
+responsive desktop/mobile layout
+LOCAL AI INTEGRATION
+Use:
+llama.cpp server
+OR
+Ollama-compatible local API
+
+Features:
+
+local REST inference
+streaming responses
+prompt templates
+cached responses
+lightweight CPU optimization
+fallback if AI server offline
+SMART MARKET CHECKS
+The system must detect:
+trending vs ranging markets
+high volatility conditions
+fake breakouts
+candle rejection zones
+weak momentum
+dangerous entries
+indicator conflicts
+spike probabilities
+trend continuation strength
+SAFETY LOGIC
+Always display:
+probabilities only
+confidence percentages
+“market uncertain” warnings
+risk notifications when signals conflict
+
+Never guarantee:
+
+profits
+winning trades
+accurate predictions
+DATABASE
+Use SQLite locally first.
+
+Prepare architecture for PostgreSQL later.
+
+Tables:
+
+market_data
+predictions
+outcomes
+ai_analysis
+learning_memory
+indicators_history
+PROJECT STRUCTURE
+Create clean scalable folders:
+frontend
+backend
+ai
+websocket
+indicators
+database
+learning
+charts
+api
+utils
+TECH STACK
+
+Frontend:
+
+React
+TailwindCSS
+TradingView Lightweight Charts
+
+Backend:
+
+Node.js
+Express
+WebSocket
+SQLite
+
+AI:
+
+llama.cpp
+GGUF local model
+prompt engineering
+memory learning system
+PERFORMANCE OPTIMIZATION
+Optimize for:
+low-end hardware
+CPU inference
+lightweight caching
+efficient websocket updates
+modular architecture
+FUTURE READY
+The architecture must support future upgrades:
+online deployment
+user accounts
+cloud AI
+multiple AI models
+notifications
+mobile wrapper
+advanced analytics
+
+Generate:
+
+full folder structure
+backend APIs
+websocket handlers
+frontend dashboard
+AI integration logic
+indicator calculations
+database schema
+starter UI
+setup instructions
+scalable architecture
+clean production-ready code structure.
+
+LOW-END HARDWARE OPTIMIZATION
+
+The system must be optimized to run efficiently on low-end computers and CPUs.
+
+Implement:
+
+lightweight AI inference
+response caching
+lazy loading
+efficient websocket handling
+reduced RAM usage
+optimized chart rendering
+batched market processing
+background task queues
+lightweight database queries
+AI context compression
+reusable indicator calculations
+throttled live updates
+
+The AI system should:
+
+avoid unnecessary model calls
+cache repeated analysis
+summarize older memory data
+limit token usage
+prioritize fast inference speed
+support CPU-only environments
+
+Frontend optimization:
+
+fast dashboard loading
+modular React components
+minimized re-renders
+lightweight chart updates
+responsive UI performance
+
+Backend optimization:
+
+asynchronous processing
+efficient websocket streams
+memory-safe operations
+scalable architecture
+modular services
+
+The website must remain responsive even while:
+
+receiving live market data
+running indicators
+analyzing patterns
+generating AI reasoning simultaneously.
