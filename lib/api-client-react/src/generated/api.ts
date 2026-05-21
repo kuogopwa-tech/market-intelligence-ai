@@ -24,25 +24,33 @@ import type {
   AiStatus,
   AnalysisRequest,
   AnalysisResult,
+  AutoPredictRequest,
+  AutoPredictionResult,
   Candle,
   GetAnalysisHistoryParams,
   GetCandlesParams,
   GetLatestAnalysisParams,
   GetMarketSummaryParams,
   GetMemoryEntriesParams,
+  GetMemoryLessonsParams,
   GetMemorySummaryParams,
+  GetPatternStatsParams,
   GetPredictionsParams,
   GetRecentTicksParams,
+  GetSignalAnalysisParams,
   GetSymbolIndicatorsParams,
   HealthStatus,
   IndicatorSet,
+  LessonsSummary,
   MarketSummary,
   MarketSymbol,
   MemoryEntry,
   MemorySummary,
   OutcomeUpdate,
+  PatternStat,
   Prediction,
   PredictionInput,
+  SignalAnalysis,
   Tick
 } from './api.schemas';
 
@@ -787,6 +795,90 @@ export function useGetAnalysisHistory<TData = Awaited<ReturnType<typeof getAnaly
 
 
 
+export const getGetSignalAnalysisUrl = (params: GetSignalAnalysisParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analysis/signals?${stringifiedParams}` : `/api/analysis/signals`
+}
+
+/**
+ * @summary Get merged signal analysis for a symbol
+ */
+export const getSignalAnalysis = async (params: GetSignalAnalysisParams, options?: RequestInit): Promise<SignalAnalysis> => {
+
+  return customFetch<SignalAnalysis>(getGetSignalAnalysisUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSignalAnalysisQueryKey = (params?: GetSignalAnalysisParams,) => {
+    return [
+    `/api/analysis/signals`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSignalAnalysisQueryOptions = <TData = Awaited<ReturnType<typeof getSignalAnalysis>>, TError = ErrorType<unknown>>(params: GetSignalAnalysisParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignalAnalysis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSignalAnalysisQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSignalAnalysis>>> = ({ signal }) => getSignalAnalysis(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSignalAnalysis>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSignalAnalysisQueryResult = NonNullable<Awaited<ReturnType<typeof getSignalAnalysis>>>
+export type GetSignalAnalysisQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get merged signal analysis for a symbol
+ */
+
+export function useGetSignalAnalysis<TData = Awaited<ReturnType<typeof getSignalAnalysis>>, TError = ErrorType<unknown>>(
+ params: GetSignalAnalysisParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignalAnalysis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSignalAnalysisQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetPredictionsUrl = (params?: GetPredictionsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -1091,6 +1183,77 @@ export function useGetPredictionAccuracy<TData = Awaited<ReturnType<typeof getPr
 
 
 
+export const getAutoPredictionUrl = () => {
+
+
+
+
+  return `/api/predictions/auto`
+}
+
+/**
+ * @summary Auto-generate a prediction based on current market signals
+ */
+export const autoPrediction = async (autoPredictRequest: AutoPredictRequest, options?: RequestInit): Promise<AutoPredictionResult> => {
+
+  return customFetch<AutoPredictionResult>(getAutoPredictionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      autoPredictRequest,)
+  }
+);}
+
+
+
+
+export const getAutoPredictionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoPrediction>>, TError,{data: BodyType<AutoPredictRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof autoPrediction>>, TError,{data: BodyType<AutoPredictRequest>}, TContext> => {
+
+const mutationKey = ['autoPrediction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof autoPrediction>>, {data: BodyType<AutoPredictRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  autoPrediction(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AutoPredictionMutationResult = NonNullable<Awaited<ReturnType<typeof autoPrediction>>>
+    export type AutoPredictionMutationBody = BodyType<AutoPredictRequest>
+    export type AutoPredictionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Auto-generate a prediction based on current market signals
+ */
+export const useAutoPrediction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoPrediction>>, TError,{data: BodyType<AutoPredictRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof autoPrediction>>,
+        TError,
+        {data: BodyType<AutoPredictRequest>},
+        TContext
+      > => {
+      return useMutation(getAutoPredictionMutationOptions(options));
+    }
+
 export const getGetMemoryEntriesUrl = (params?: GetMemoryEntriesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -1247,6 +1410,174 @@ export function useGetMemorySummary<TData = Awaited<ReturnType<typeof getMemoryS
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMemorySummaryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPatternStatsUrl = (params?: GetPatternStatsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/memory/patterns?${stringifiedParams}` : `/api/memory/patterns`
+}
+
+/**
+ * @summary Get pattern recognition statistics from historical memory
+ */
+export const getPatternStats = async (params?: GetPatternStatsParams, options?: RequestInit): Promise<PatternStat[]> => {
+
+  return customFetch<PatternStat[]>(getGetPatternStatsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPatternStatsQueryKey = (params?: GetPatternStatsParams,) => {
+    return [
+    `/api/memory/patterns`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPatternStatsQueryOptions = <TData = Awaited<ReturnType<typeof getPatternStats>>, TError = ErrorType<unknown>>(params?: GetPatternStatsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPatternStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPatternStatsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPatternStats>>> = ({ signal }) => getPatternStats(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPatternStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPatternStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getPatternStats>>>
+export type GetPatternStatsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get pattern recognition statistics from historical memory
+ */
+
+export function useGetPatternStats<TData = Awaited<ReturnType<typeof getPatternStats>>, TError = ErrorType<unknown>>(
+ params?: GetPatternStatsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPatternStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPatternStatsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetMemoryLessonsUrl = (params?: GetMemoryLessonsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/memory/lessons?${stringifiedParams}` : `/api/memory/lessons`
+}
+
+/**
+ * @summary Get AI-generated lessons from historical prediction outcomes
+ */
+export const getMemoryLessons = async (params?: GetMemoryLessonsParams, options?: RequestInit): Promise<LessonsSummary> => {
+
+  return customFetch<LessonsSummary>(getGetMemoryLessonsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMemoryLessonsQueryKey = (params?: GetMemoryLessonsParams,) => {
+    return [
+    `/api/memory/lessons`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMemoryLessonsQueryOptions = <TData = Awaited<ReturnType<typeof getMemoryLessons>>, TError = ErrorType<unknown>>(params?: GetMemoryLessonsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryLessons>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMemoryLessonsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMemoryLessons>>> = ({ signal }) => getMemoryLessons(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMemoryLessons>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMemoryLessonsQueryResult = NonNullable<Awaited<ReturnType<typeof getMemoryLessons>>>
+export type GetMemoryLessonsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get AI-generated lessons from historical prediction outcomes
+ */
+
+export function useGetMemoryLessons<TData = Awaited<ReturnType<typeof getMemoryLessons>>, TError = ErrorType<unknown>>(
+ params?: GetMemoryLessonsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryLessons>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMemoryLessonsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

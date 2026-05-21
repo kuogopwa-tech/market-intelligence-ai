@@ -1,0 +1,325 @@
+IMPORTANT:
+Do NOT rebuild the existing system.
+
+This is PHASE 2 of the current DerivAnalyst platform.
+
+The existing architecture is already working correctly:
+- frontend dashboard
+- backend API
+- websocket market streaming
+- live chart rendering
+- technical indicators
+- AI fallback analysis
+- SQLite database
+- prediction pages
+- memory pages
+- symbol switching
+- real Deriv integration
+
+Your task is ONLY to enhance the intelligence, learning, prediction quality, and AI reasoning systems.
+
+Preserve all current functionality and architecture.
+
+==================================================
+PHASE 2 GOALS
+==================================================
+
+Transform the current dashboard into a smarter adaptive market intelligence system.
+
+Focus on:
+- better reasoning
+- confidence scoring
+- pattern learning
+- signal merging
+- prediction evaluation
+- memory intelligence
+- AI explanation quality
+- performance optimization
+
+==================================================
+1. BUILD SIGNAL MERGING ENGINE
+==================================================
+
+Current indicators already exist.
+
+Create a centralized signal engine that combines:
+- RSI
+- MACD
+- EMA alignment
+- Bollinger Bands
+- ATR
+- Stochastic
+- volatility state
+- trend strength
+- support/resistance reactions
+
+Generate:
+- bullish score
+- bearish score
+- neutral score
+- confidence percentage
+- risk level
+- market condition classification
+
+Possible market states:
+- Strong Bullish
+- Weak Bullish
+- Strong Bearish
+- Weak Bearish
+- Ranging
+- Volatile
+- Spike Risk
+- Reversal Watch
+- Uncertain
+
+==================================================
+2. UPGRADE AI REASONING QUALITY
+==================================================
+
+Improve the AI analysis panel.
+
+The AI should explain:
+- WHY market may rise or fall
+- which indicators support the move
+- which indicators conflict
+- volatility conditions
+- momentum strength
+- trend quality
+- market uncertainty
+
+Example format:
+
+Market Analysis Summary:
+
+Current market conditions show weakening bullish momentum with mild bearish pressure.
+
+RSI remains neutral, indicating no strong directional dominance.
+
+MACD histogram is negative, suggesting slowing momentum and possible short-term weakness.
+
+EMA alignment shows bearish short-term structure.
+
+Overall Market Bias:
+Weak Bearish / Ranging
+
+Confidence:
+61%
+
+Risk Level:
+Medium
+
+==================================================
+3. BUILD MARKET STATE ENGINE
+==================================================
+
+Create a dedicated service that classifies live market conditions.
+
+Detect:
+- trending markets
+- ranging markets
+- high volatility
+- weak momentum
+- possible reversals
+- breakout attempts
+- fake breakouts
+- spike risk conditions
+- exhaustion zones
+
+Display live market state badges on dashboard.
+
+==================================================
+4. BUILD ADVANCED PREDICTION ENGINE
+==================================================
+
+Current prediction system exists.
+
+Upgrade it to:
+- automatically generate predictions after candle close
+- assign confidence percentages
+- calculate bullish/bearish probability
+- classify uncertainty
+- assign prediction expiry times
+- evaluate results automatically
+
+Predictions:
+- Rise
+- Fall
+- Range
+- Uncertain
+
+Track:
+- prediction confidence
+- actual outcome
+- success/failure
+- market condition during prediction
+
+==================================================
+5. BUILD SELF-LEARNING MEMORY ENGINE
+==================================================
+
+Upgrade the Memory page into a real adaptive learning system.
+
+Store:
+- indicators at prediction time
+- market state
+- AI reasoning
+- volatility condition
+- prediction direction
+- confidence
+- actual outcome
+- success/failure
+
+Generate:
+- top successful patterns
+- failed setups
+- confidence evolution
+- market condition statistics
+- AI lesson summaries
+
+==================================================
+6. BUILD PATTERN RECOGNITION SYSTEM
+==================================================
+
+Analyze historical predictions and detect repeating successful conditions.
+
+Example:
+
+When:
+- RSI below 45
+- MACD negative
+- EMA bearish
+- ATR moderate
+
+Then:
+Volatility 100 Index continued downward 68% of the time.
+
+Create:
+- pattern statistics
+- setup probabilities
+- confidence weighting
+- historical condition matching
+
+==================================================
+7. BUILD AI LESSONS SYSTEM
+==================================================
+
+Generate readable lessons from historical outcomes.
+
+Example:
+
+Lesson Learned:
+
+Bearish EMA alignment combined with RSI below 45 and moderate ATR produced successful downward continuation 71% of the time on Volatility 100 Index.
+
+Display:
+- recent lessons
+- strongest setups
+- dangerous setups
+- common failures
+- evolving confidence
+
+==================================================
+8. ADD NO-TRADE / UNCERTAIN LOGIC
+==================================================
+
+The AI must sometimes refuse prediction.
+
+Example:
+
+Market conditions unclear.
+Signals conflict.
+Prediction confidence too low.
+Avoid directional bias.
+
+This behavior is REQUIRED.
+
+==================================================
+9. LOCAL AI OPTIMIZATION
+==================================================
+
+Improve local GGUF model integration.
+
+Optimize for:
+- low-end CPUs
+- lightweight inference
+- cached responses
+- reduced token usage
+- compressed AI memory context
+- asynchronous AI requests
+- fallback handling
+
+Support:
+- llama.cpp
+- Ollama-compatible APIs
+
+Display:
+- AI online/offline status
+- inference speed
+- response latency
+
+==================================================
+10. PERFORMANCE OPTIMIZATION
+==================================================
+
+Optimize the current platform for:
+- low RAM usage
+- websocket efficiency
+- minimal frontend re-renders
+- optimized chart updates
+- reusable indicator calculations
+- lazy loading
+- batched processing
+- memory-safe operations
+
+The dashboard must remain smooth while:
+- streaming live market data
+- calculating indicators
+- generating AI analysis
+- tracking predictions
+- updating learning memory simultaneously
+
+==================================================
+11. IMPORTANT ARCHITECTURE RULE
+==================================================
+
+Do NOT let AI blindly guess candles.
+
+The architecture must remain:
+
+Market Data
+→ Indicator Engine
+→ Signal Merging
+→ Market State Detection
+→ Pattern Recognition
+→ AI Reasoning
+→ Confidence Scoring
+→ Prediction Tracking
+→ Learning Memory
+
+AI should mainly:
+- explain
+- reason
+- summarize
+- compare signals
+- generate insights
+
+The core intelligence should come from:
+- indicator logic
+- scoring systems
+- historical statistics
+- market structure analysis
+- probability analysis
+- adaptive learning
+
+==================================================
+12. FINAL GOAL
+==================================================
+
+Transform the current working DerivAnalyst platform into:
+
+- a professional AI market intelligence dashboard
+- a self-learning probabilistic analysis engine
+- an adaptive trading behavior analyzer
+- a high-quality reasoning system
+
+without rebuilding or breaking the current architecture.

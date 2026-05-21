@@ -11,8 +11,10 @@ export const predictionsTable = pgTable("predictions", {
   exitPrice: real("exit_price"),
   outcome: text("outcome"),
   analysisId: integer("analysis_id"),
+  marketState: text("market_state"),
   indicators: jsonb("indicators").notNull().default({}),
   resolvedAt: bigint("resolved_at", { mode: "number" }),
+  expiresAt: bigint("expires_at", { mode: "number" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

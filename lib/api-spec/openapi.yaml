@@ -222,6 +222,31 @@ paths:
                 items:
                   $ref: "#/components/schemas/AnalysisResult"
 
+  /analysis/signals:
+    get:
+      operationId: getSignalAnalysis
+      tags: [analysis]
+      summary: Get merged signal analysis for a symbol
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: granularity
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 60
+      responses:
+        "200":
+          description: Signal merge result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalAnalysis"
+
   /predictions:
     get:
       operationId: getPredictions
@@ -306,6 +331,25 @@ paths:
                 items:
                   $ref: "#/components/schemas/AccuracyStats"
 
+  /predictions/auto:
+    post:
+      operationId: autoPrediction
+      tags: [predictions]
+      summary: Auto-generate a prediction based on current market signals
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutoPredictRequest"
+      responses:
+        "200":
+          description: Auto-generated prediction result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutoPredictionResult"
+
   /memory:
     get:
       operationId: getMemoryEntries
@@ -351,6 +395,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MemorySummary"
+
+  /memory/patterns:
+    get:
+      operationId: getPatternStats
+      tags: [memory]
+      summary: Get pattern recognition statistics from historical memory
+      parameters:
+        - name: symbol
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pattern statistics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PatternStat"
+
+  /memory/lessons:
+    get:
+      operationId: getMemoryLessons
+      tags: [memory]
+      summary: Get AI-generated lessons from historical prediction outcomes
+      parameters:
+        - name: symbol
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lessons summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LessonsSummary"
 
   /ai/status:
     get:
@@ -445,6 +529,8 @@ components:
         marketCondition:
           type: string
           enum: [trending, ranging, reversing, uncertain]
+        marketState:
+          type: ["string", "null"]
         supportLevel:
           type: ["number", "null"]
         resistanceLevel:
@@ -495,6 +581,37 @@ components:
         trendStrength:
           type: ["number", "null"]
 
+    SignalAnalysis:
+      type: object
+      required: [symbol, bullishScore, bearishScore, neutralScore, confidence, riskLevel, marketState, supportingSignals, conflictingSignals, noTradeZone]
+      properties:
+        symbol:
+          type: string
+        bullishScore:
+          type: number
+        bearishScore:
+          type: number
+        neutralScore:
+          type: number
+        confidence:
+          type: number
+        riskLevel:
+          type: string
+          enum: [Low, Medium, High, Extreme]
+        marketState:
+          type: string
+          enum: [Strong Bullish, Weak Bullish, Strong Bearish, Weak Bearish, Ranging, Volatile, Spike Risk, Reversal Watch, Uncertain]
+        supportingSignals:
+          type: array
+          items:
+            type: string
+        conflictingSignals:
+          type: array
+          items:
+            type: string
+        noTradeZone:
+          type: boolean
+
     AnalysisRequest:
       type: object
       required: [symbol]
@@ -522,6 +639,16 @@ components:
           type: number
         marketCondition:
           type: string
+        marketState:
+          type: ["string", "null"]
+        riskLevel:
+          type: ["string", "null"]
+        bullishScore:
+          type: ["number", "null"]
+        bearishScore:
+          type: ["number", "null"]
+        noTradeZone:
+          type: boolean
         signals:
           type: array
           items:
@@ -545,12 +672,16 @@ components:
           type: string
         direction:
           type: string
-          enum: [rise, fall]
+          enum: [rise, fall, range, uncertain]
         confidence:
           type: number
         entryPrice:
           type: number
         analysisId:
+          type: ["integer", "null"]
+        marketState:
+          type: ["string", "null"]
+        expiresAt:
           type: ["integer", "null"]
         indicators:
           type: object
@@ -576,9 +707,13 @@ components:
           enum: [correct, incorrect, null]
         analysisId:
           type: ["integer", "null"]
+        marketState:
+          type: ["string", "null"]
         indicators:
           type: object
         resolvedAt:
+          type: ["integer", "null"]
+        expiresAt:
           type: ["integer", "null"]
         createdAt:
           type: integer
@@ -609,6 +744,76 @@ components:
           type: integer
         accuracy:
           type: number
+
+    AutoPredictRequest:
+      type: object
+      required: [symbol]
+      properties:
+        symbol:
+          type: string
+
+    AutoPredictionResult:
+      type: object
+      required: [generated, reason]
+      properties:
+        generated:
+          type: boolean
+        reason:
+          type: string
+        prediction:
+          $ref: "#/components/schemas/Prediction"
+        signals:
+          $ref: "#/components/schemas/SignalAnalysis"
+
+    PatternStat:
+      type: object
+      required: [pattern, description, successRate, totalTrades, wins, losses, dominantDirection, avgConfidence]
+      properties:
+        pattern:
+          type: string
+        description:
+          type: string
+        successRate:
+          type: number
+        totalTrades:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        dominantDirection:
+          type: string
+        avgConfidence:
+          type: number
+
+    LessonEntry:
+      type: object
+      required: [lesson, type, pattern, successRate]
+      properties:
+        lesson:
+          type: string
+        type:
+          type: string
+          enum: [success, warning, info]
+        pattern:
+          type: string
+        successRate:
+          type: number
+
+    LessonsSummary:
+      type: object
+      required: [lessons, totalPatterns, patternStats]
+      properties:
+        lessons:
+          type: array
+          items:
+            $ref: "#/components/schemas/LessonEntry"
+        totalPatterns:
+          type: integer
+        patternStats:
+          type: array
+          items:
+            $ref: "#/components/schemas/PatternStat"
 
     MemoryEntry:
       type: object

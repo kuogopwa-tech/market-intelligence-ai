@@ -20,8 +20,12 @@ export interface Prediction {
   outcome?: PredictionOutcome;
   /** @nullable */
   analysisId?: number | null;
+  /** @nullable */
+  marketState?: string | null;
   indicators?: PredictionIndicators;
   /** @nullable */
   resolvedAt?: number | null;
+  /** @nullable */
+  expiresAt?: number | null;
   createdAt: number;
 }

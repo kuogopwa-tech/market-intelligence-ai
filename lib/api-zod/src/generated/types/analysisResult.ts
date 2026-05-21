@@ -14,6 +14,15 @@ export interface AnalysisResult {
   fallProbability: number;
   confidence: number;
   marketCondition: string;
+  /** @nullable */
+  marketState?: string | null;
+  /** @nullable */
+  riskLevel?: string | null;
+  /** @nullable */
+  bullishScore?: number | null;
+  /** @nullable */
+  bearishScore?: number | null;
+  noTradeZone?: boolean;
   signals: string[];
   warnings: string[];
   /** @nullable */

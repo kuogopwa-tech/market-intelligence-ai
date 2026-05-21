@@ -88,6 +88,8 @@ export interface MarketSummary {
   momentum: MarketSummaryMomentum;
   marketCondition: MarketSummaryMarketCondition;
   /** @nullable */
+  marketState?: string | null;
+  /** @nullable */
   supportLevel?: number | null;
   /** @nullable */
   resistanceLevel?: number | null;
@@ -131,6 +133,44 @@ export interface IndicatorSet {
   trendStrength?: number | null;
 }
 
+export type SignalAnalysisRiskLevel = typeof SignalAnalysisRiskLevel[keyof typeof SignalAnalysisRiskLevel];
+
+
+export const SignalAnalysisRiskLevel = {
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
+  Extreme: 'Extreme',
+} as const;
+
+export type SignalAnalysisMarketState = typeof SignalAnalysisMarketState[keyof typeof SignalAnalysisMarketState];
+
+
+export const SignalAnalysisMarketState = {
+  Strong_Bullish: 'Strong Bullish',
+  Weak_Bullish: 'Weak Bullish',
+  Strong_Bearish: 'Strong Bearish',
+  Weak_Bearish: 'Weak Bearish',
+  Ranging: 'Ranging',
+  Volatile: 'Volatile',
+  Spike_Risk: 'Spike Risk',
+  Reversal_Watch: 'Reversal Watch',
+  Uncertain: 'Uncertain',
+} as const;
+
+export interface SignalAnalysis {
+  symbol: string;
+  bullishScore: number;
+  bearishScore: number;
+  neutralScore: number;
+  confidence: number;
+  riskLevel: SignalAnalysisRiskLevel;
+  marketState: SignalAnalysisMarketState;
+  supportingSignals: string[];
+  conflictingSignals: string[];
+  noTradeZone: boolean;
+}
+
 export interface AnalysisRequest {
   symbol: string;
   forceRefresh?: boolean;
@@ -144,6 +184,15 @@ export interface AnalysisResult {
   fallProbability: number;
   confidence: number;
   marketCondition: string;
+  /** @nullable */
+  marketState?: string | null;
+  /** @nullable */
+  riskLevel?: string | null;
+  /** @nullable */
+  bullishScore?: number | null;
+  /** @nullable */
+  bearishScore?: number | null;
+  noTradeZone?: boolean;
   signals: string[];
   warnings: string[];
   /** @nullable */
@@ -158,6 +207,8 @@ export type PredictionInputDirection = typeof PredictionInputDirection[keyof typ
 export const PredictionInputDirection = {
   rise: 'rise',
   fall: 'fall',
+  range: 'range',
+  uncertain: 'uncertain',
 } as const;
 
 export type PredictionInputIndicators = { [key: string]: unknown };
@@ -169,6 +220,10 @@ export interface PredictionInput {
   entryPrice: number;
   /** @nullable */
   analysisId?: number | null;
+  /** @nullable */
+  marketState?: string | null;
+  /** @nullable */
+  expiresAt?: number | null;
   indicators: PredictionInputIndicators;
 }
 
@@ -197,9 +252,13 @@ export interface Prediction {
   outcome?: PredictionOutcome;
   /** @nullable */
   analysisId?: number | null;
+  /** @nullable */
+  marketState?: string | null;
   indicators?: PredictionIndicators;
   /** @nullable */
   resolvedAt?: number | null;
+  /** @nullable */
+  expiresAt?: number | null;
   createdAt: number;
 }
 
@@ -223,6 +282,50 @@ export interface AccuracyStats {
   incorrect: number;
   pending: number;
   accuracy: number;
+}
+
+export interface AutoPredictRequest {
+  symbol: string;
+}
+
+export interface AutoPredictionResult {
+  generated: boolean;
+  reason: string;
+  prediction?: Prediction;
+  signals?: SignalAnalysis;
+}
+
+export interface PatternStat {
+  pattern: string;
+  description: string;
+  successRate: number;
+  totalTrades: number;
+  wins: number;
+  losses: number;
+  dominantDirection: string;
+  avgConfidence: number;
+}
+
+export type LessonEntryType = typeof LessonEntryType[keyof typeof LessonEntryType];
+
+
+export const LessonEntryType = {
+  success: 'success',
+  warning: 'warning',
+  info: 'info',
+} as const;
+
+export interface LessonEntry {
+  lesson: string;
+  type: LessonEntryType;
+  pattern: string;
+  successRate: number;
+}
+
+export interface LessonsSummary {
+  lessons: LessonEntry[];
+  totalPatterns: number;
+  patternStats: PatternStat[];
 }
 
 export type MemoryEntryPatternData = { [key: string]: unknown };
@@ -286,6 +389,11 @@ symbol: string;
 limit?: number;
 };
 
+export type GetSignalAnalysisParams = {
+symbol: string;
+granularity?: number;
+};
+
 export type GetPredictionsParams = {
 symbol?: string;
 limit?: number;
@@ -297,6 +405,14 @@ limit?: number;
 };
 
 export type GetMemorySummaryParams = {
+symbol?: string;
+};
+
+export type GetPatternStatsParams = {
+symbol?: string;
+};
+
+export type GetMemoryLessonsParams = {
 symbol?: string;
 };
 
