@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useGetMarketSymbols, getGetMarketSymbolsQueryKey, useGetAiStatus, getGetAiStatusQueryKey } from "@workspace/api-client-react";
 import { useAppStore } from "../store";
+import { useSignalAlert } from "../hooks/useSignalAlert";
 import { 
   Activity, 
   BarChart2, 
@@ -9,9 +10,6 @@ import {
   Target, 
   Database, 
   Settings,
-  ChevronDown,
-  Wifi,
-  WifiOff
 } from "lucide-react";
 import {
   Select,
@@ -35,6 +33,11 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+function AlertMonitor() {
+  useSignalAlert();
+  return null;
+}
+
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const { selectedSymbol, setSelectedSymbol, granularity, setGranularity } = useAppStore();
@@ -42,7 +45,7 @@ export function Layout({ children }: LayoutProps) {
   const { data: symbols, isLoading: isLoadingSymbols } = useGetMarketSymbols({
     query: {
       queryKey: getGetMarketSymbolsQueryKey(),
-      staleTime: 1000 * 60 * 60, // 1 hour
+      staleTime: 1000 * 60 * 60,
     }
   });
 
@@ -55,6 +58,8 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground dark">
+      <AlertMonitor />
+
       {/* Sidebar */}
       <aside className="w-64 border-r border-border bg-card flex flex-col hidden md:flex">
         <div className="h-14 border-b border-border flex items-center px-4">
@@ -103,7 +108,6 @@ export function Layout({ children }: LayoutProps) {
         {/* Topbar */}
         <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-4">
-            {/* Symbol Selector */}
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground hidden sm:inline">Symbol</span>
               {isLoadingSymbols ? (
@@ -124,7 +128,6 @@ export function Layout({ children }: LayoutProps) {
               )}
             </div>
 
-            {/* Granularity Selector */}
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground hidden sm:inline">Interval</span>
               <Select value={granularity.toString()} onValueChange={(val) => setGranularity(parseInt(val, 10))}>
@@ -142,9 +145,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-             {/* Mobile menu could go here */}
-          </div>
+          <div className="flex items-center gap-4" />
         </header>
 
         {/* Page Content */}
