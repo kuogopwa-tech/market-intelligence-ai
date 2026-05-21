@@ -242,6 +242,43 @@ export const GetSignalAnalysisResponse = zod.object({
 
 
 /**
+ * @summary Get signal quality assessment with alert classification
+ */
+export const getSignalQualityQueryGranularityDefault = 60;
+
+export const GetSignalQualityQueryParams = zod.object({
+  "symbol": zod.coerce.string(),
+  "granularity": zod.coerce.number().default(getSignalQualityQueryGranularityDefault)
+})
+
+export const GetSignalQualityResponse = zod.object({
+  "symbol": zod.string(),
+  "bullishScore": zod.number(),
+  "bearishScore": zod.number(),
+  "confidence": zod.number(),
+  "marketState": zod.string(),
+  "riskLevel": zod.string(),
+  "noTradeZone": zod.boolean(),
+  "supportingSignals": zod.array(zod.string()),
+  "conflictingSignals": zod.array(zod.string()),
+  "cleanSignalScore": zod.number(),
+  "riskScore": zod.number(),
+  "confidenceWeight": zod.number(),
+  "indicatorAlignment": zod.number(),
+  "momentumConfirmation": zod.number(),
+  "volatilityCompatibility": zod.number(),
+  "marketCleanliness": zod.enum(['clean', 'choppy', 'trending', 'volatile']),
+  "setupRarity": zod.enum(['common', 'moderate', 'rare', 'exceptional']),
+  "alertType": zod.string(),
+  "expirySeconds": zod.number(),
+  "historicalBoost": zod.number(),
+  "patternName": zod.string(),
+  "historicalSuccessRate": zod.number(),
+  "historicalTrades": zod.number()
+})
+
+
+/**
  * @summary Get prediction records
  */
 export const getPredictionsQueryLimitDefault = 20;

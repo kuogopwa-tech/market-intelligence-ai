@@ -14,6 +14,17 @@ export type MarketState =
 
 export type RiskLevel = "Low" | "Medium" | "High" | "Extreme";
 
+export type AlertType =
+  | "High Confidence Bullish"
+  | "High Confidence Bearish"
+  | "Reversal Watch"
+  | "Spike Risk Warning"
+  | "No-Trade Warning"
+  | "none";
+
+export type SetupRarity = "common" | "moderate" | "rare" | "exceptional";
+export type MarketCleanliness = "clean" | "choppy" | "trending" | "volatile";
+
 export interface SignalResult {
   bullishScore: number;
   bearishScore: number;
@@ -24,6 +35,20 @@ export interface SignalResult {
   supportingSignals: string[];
   conflictingSignals: string[];
   noTradeZone: boolean;
+}
+
+export interface SignalQuality {
+  cleanSignalScore: number;
+  riskScore: number;
+  confidenceWeight: number;
+  indicatorAlignment: number;
+  momentumConfirmation: number;
+  volatilityCompatibility: number;
+  marketCleanliness: MarketCleanliness;
+  setupRarity: SetupRarity;
+  alertType: AlertType;
+  expirySeconds: number;
+  historicalBoost: number;
 }
 
 export function mergeSignals(indicators: IndicatorSet): SignalResult {
@@ -161,7 +186,6 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
     }
   }
 
-  // Support/Resistance reactions
   if (cond.spikeDetected) {
     conflictingSignals.push("Volatility spike detected — price action unreliable");
   }
@@ -175,7 +199,7 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
   const bearishScore = 100 - bullishScore;
   const neutralScore = Math.min(Math.round(conflictingSignals.length * 20), 60);
 
-  // Confidence calculation
+  // Confidence
   const signalDominance = Math.abs(bullishScore - bearishScore);
   const baseConfidence = signalDominance * 0.7 + 20;
   const penaltyConflicts = conflictingSignals.length * 8;
@@ -187,7 +211,7 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
     Math.min(88, Math.round(baseConfidence - penaltyConflicts - penaltyVolatility - penaltySpike))
   );
 
-  // Market state classification
+  // Market state
   let marketState: MarketState;
   if (cond.spikeDetected) {
     marketState = "Spike Risk";
@@ -240,5 +264,219 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
     supportingSignals,
     conflictingSignals,
     noTradeZone,
+  };
+}
+
+// ─── Signal Quality Engine ────────────────────────────────────────────────────
+
+interface PatternHistoryEntry {
+  successRate: number;
+  totalTrades: number;
+}
+
+export function computeSignalQuality(
+  signals: SignalResult,
+  indicators: IndicatorSet,
+  patternHistory?: PatternHistoryEntry
+): SignalQuality {
+  const { rsi, macdLine, macdSignal, macdHistogram, ema9, ema21, ema50, stochasticK, trendStrength } = indicators;
+  const cond = detectMarketCondition(indicators);
+  const isBullishDominant = signals.bullishScore > signals.bearishScore;
+
+  // ── Indicator Alignment Score (0–100) ──────────────────────────────────────
+  // Each of 4 indicators gets 25 points if it agrees with the dominant direction
+  let alignmentPoints = 0;
+
+  // RSI alignment
+  if (rsi !== null) {
+    if (isBullishDominant && rsi > 52) alignmentPoints += 25;
+    else if (!isBullishDominant && rsi < 48) alignmentPoints += 25;
+    else if (Math.abs(rsi - 50) < 5) alignmentPoints += 8; // neutral, partial credit
+    else alignmentPoints += 12; // slight opposite — conflict penalty
+  } else {
+    alignmentPoints += 12;
+  }
+
+  // MACD alignment
+  if (macdLine !== null && macdSignal !== null && macdHistogram !== null) {
+    const macdBullish = macdLine > macdSignal && macdHistogram > 0;
+    const macdBearish = macdLine < macdSignal && macdHistogram < 0;
+    if (isBullishDominant && macdBullish) alignmentPoints += 25;
+    else if (!isBullishDominant && macdBearish) alignmentPoints += 25;
+    else if (macdBullish || macdBearish) alignmentPoints += 10; // partial
+    else alignmentPoints += 5; // conflicting
+  } else {
+    alignmentPoints += 12;
+  }
+
+  // EMA alignment
+  if (ema9 !== null && ema21 !== null && ema50 !== null) {
+    const emaFullBull = ema9 > ema21 && ema21 > ema50;
+    const emaFullBear = ema9 < ema21 && ema21 < ema50;
+    if (isBullishDominant && emaFullBull) alignmentPoints += 25;
+    else if (!isBullishDominant && emaFullBear) alignmentPoints += 25;
+    else alignmentPoints += 5; // mixed
+  } else {
+    alignmentPoints += 12;
+  }
+
+  // Stochastic alignment
+  if (stochasticK !== null) {
+    if (isBullishDominant && stochasticK > 50 && stochasticK < 80) alignmentPoints += 25;
+    else if (!isBullishDominant && stochasticK < 50 && stochasticK > 20) alignmentPoints += 25;
+    else if (stochasticK >= 80 || stochasticK <= 20) alignmentPoints += 5; // extreme zones reduce quality
+    else alignmentPoints += 12;
+  } else {
+    alignmentPoints += 12;
+  }
+
+  const indicatorAlignment = Math.min(100, alignmentPoints);
+
+  // ── Momentum Confirmation Score (0–100) ──────────────────────────────────────
+  let momentumScore = 0;
+
+  // MACD histogram strength
+  if (macdHistogram !== null) {
+    const histStrength = Math.min(Math.abs(macdHistogram) * 10000, 30);
+    momentumScore += histStrength;
+  }
+
+  // Trend strength
+  if (trendStrength !== null) {
+    if (trendStrength > 60) momentumScore += 40;
+    else if (trendStrength > 35) momentumScore += 25;
+    else if (trendStrength > 15) momentumScore += 10;
+    else momentumScore += 0; // weak trend hurts
+  }
+
+  // RSI distance from 50 (momentum)
+  if (rsi !== null) {
+    const rsiMomentum = Math.min(Math.abs(rsi - 50) * 0.6, 30);
+    momentumScore += rsiMomentum;
+  }
+
+  const momentumConfirmation = Math.min(100, Math.round(momentumScore));
+
+  // ── Volatility Compatibility Score (0–100) ─────────────────────────────────
+  let volatilityScore: number;
+  switch (cond.volatility) {
+    case "low":    volatilityScore = 85; break; // low vol = clean trending
+    case "medium": volatilityScore = 100; break; // ideal for directional trades
+    case "high":   volatilityScore = 45; break;
+    case "extreme":volatilityScore = 10; break;
+    default:       volatilityScore = 70;
+  }
+  if (cond.spikeDetected) volatilityScore = Math.min(volatilityScore, 15);
+  const volatilityCompatibility = volatilityScore;
+
+  // ── Conflict Penalty ──────────────────────────────────────────────────────
+  const conflictPenalty = signals.conflictingSignals.length * 12;
+
+  // ── Historical Boost ──────────────────────────────────────────────────────
+  let historicalBoost = 0;
+  if (patternHistory && patternHistory.totalTrades >= 3) {
+    if (patternHistory.successRate >= 70) historicalBoost = 12;
+    else if (patternHistory.successRate >= 60) historicalBoost = 6;
+    else if (patternHistory.successRate <= 35) historicalBoost = -10;
+  }
+
+  // ── Clean Signal Score (0–100) ────────────────────────────────────────────
+  const rawClean =
+    indicatorAlignment * 0.40 +
+    momentumConfirmation * 0.30 +
+    volatilityCompatibility * 0.20 +
+    Math.max(0, 10 - conflictPenalty) * 1.0; // 10 bonus for no conflicts, scaled
+
+  const cleanSignalScore = Math.max(0, Math.min(100, Math.round(rawClean + historicalBoost)));
+
+  // ── Risk Score (0–100, higher = riskier) ─────────────────────────────────
+  const riskScore = Math.max(0, Math.min(100, Math.round(
+    100 - cleanSignalScore + conflictPenalty * 0.5
+  )));
+
+  // ── Confidence Weight (adjusted with history) ─────────────────────────────
+  const confidenceWeight = Math.min(
+    95,
+    Math.max(15, signals.confidence + historicalBoost)
+  );
+
+  // ── Market Cleanliness ────────────────────────────────────────────────────
+  let marketCleanliness: MarketCleanliness;
+  if (cleanSignalScore >= 72 && signals.conflictingSignals.length === 0) {
+    marketCleanliness = "clean";
+  } else if (
+    signals.marketState.includes("Bullish") ||
+    signals.marketState.includes("Bearish")
+  ) {
+    marketCleanliness = "trending";
+  } else if (cond.volatility === "high" || cond.volatility === "extreme" || cond.spikeDetected) {
+    marketCleanliness = "volatile";
+  } else {
+    marketCleanliness = "choppy";
+  }
+
+  // ── Setup Rarity ──────────────────────────────────────────────────────────
+  let setupRarity: SetupRarity;
+  const allAligned = indicatorAlignment >= 90;
+  if (cleanSignalScore >= 85 && allAligned && historicalBoost > 0) {
+    setupRarity = "exceptional";
+  } else if (cleanSignalScore >= 72 && indicatorAlignment >= 75) {
+    setupRarity = "rare";
+  } else if (cleanSignalScore >= 55) {
+    setupRarity = "moderate";
+  } else {
+    setupRarity = "common";
+  }
+
+  // ── Alert Type ───────────────────────────────────────────────────────────
+  let alertType: AlertType = "none";
+
+  if (signals.marketState === "Spike Risk") {
+    alertType = "Spike Risk Warning";
+  } else if (signals.noTradeZone && signals.conflictingSignals.length >= 2) {
+    alertType = "No-Trade Warning";
+  } else if (signals.marketState === "Reversal Watch") {
+    alertType = "Reversal Watch";
+  } else if (
+    cleanSignalScore >= 65 &&
+    confidenceWeight >= 62 &&
+    signals.bullishScore >= 58 &&
+    signals.conflictingSignals.length <= 1 &&
+    !cond.spikeDetected &&
+    signals.marketState !== "Ranging"
+  ) {
+    alertType = "High Confidence Bullish";
+  } else if (
+    cleanSignalScore >= 65 &&
+    confidenceWeight >= 62 &&
+    signals.bearishScore >= 58 &&
+    signals.conflictingSignals.length <= 1 &&
+    !cond.spikeDetected &&
+    signals.marketState !== "Ranging"
+  ) {
+    alertType = "High Confidence Bearish";
+  }
+
+  // ── Expiry Seconds ────────────────────────────────────────────────────────
+  // Higher quality = signal valid longer; spike risk = expires fast
+  const expirySeconds =
+    alertType === "Spike Risk Warning" ? 120
+    : alertType === "No-Trade Warning" ? 300
+    : cleanSignalScore >= 80 ? 600
+    : cleanSignalScore >= 65 ? 420
+    : 300;
+
+  return {
+    cleanSignalScore,
+    riskScore,
+    confidenceWeight,
+    indicatorAlignment,
+    momentumConfirmation,
+    volatilityCompatibility,
+    marketCleanliness,
+    setupRarity,
+    alertType,
+    expirySeconds,
+    historicalBoost,
   };
 }

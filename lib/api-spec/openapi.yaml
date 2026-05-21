@@ -247,6 +247,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/SignalAnalysis"
 
+  /analysis/quality:
+    get:
+      operationId: getSignalQuality
+      tags: [analysis]
+      summary: Get signal quality assessment with alert classification
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: granularity
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 60
+      responses:
+        "200":
+          description: Signal quality result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalQualityResult"
+
   /predictions:
     get:
       operationId: getPredictions
@@ -580,6 +605,63 @@ components:
           type: ["number", "null"]
         trendStrength:
           type: ["number", "null"]
+
+    SignalQualityResult:
+      type: object
+      required: [symbol, bullishScore, bearishScore, confidence, marketState, riskLevel, noTradeZone, supportingSignals, conflictingSignals, cleanSignalScore, riskScore, confidenceWeight, indicatorAlignment, momentumConfirmation, volatilityCompatibility, marketCleanliness, setupRarity, alertType, expirySeconds, historicalBoost, patternName, historicalSuccessRate, historicalTrades]
+      properties:
+        symbol:
+          type: string
+        bullishScore:
+          type: number
+        bearishScore:
+          type: number
+        confidence:
+          type: number
+        marketState:
+          type: string
+        riskLevel:
+          type: string
+        noTradeZone:
+          type: boolean
+        supportingSignals:
+          type: array
+          items:
+            type: string
+        conflictingSignals:
+          type: array
+          items:
+            type: string
+        cleanSignalScore:
+          type: number
+        riskScore:
+          type: number
+        confidenceWeight:
+          type: number
+        indicatorAlignment:
+          type: number
+        momentumConfirmation:
+          type: number
+        volatilityCompatibility:
+          type: number
+        marketCleanliness:
+          type: string
+          enum: [clean, choppy, trending, volatile]
+        setupRarity:
+          type: string
+          enum: [common, moderate, rare, exceptional]
+        alertType:
+          type: string
+        expirySeconds:
+          type: integer
+        historicalBoost:
+          type: number
+        patternName:
+          type: string
+        historicalSuccessRate:
+          type: number
+        historicalTrades:
+          type: integer
 
     SignalAnalysis:
       type: object

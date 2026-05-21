@@ -133,6 +133,52 @@ export interface IndicatorSet {
   trendStrength?: number | null;
 }
 
+export type SignalQualityResultMarketCleanliness = typeof SignalQualityResultMarketCleanliness[keyof typeof SignalQualityResultMarketCleanliness];
+
+
+export const SignalQualityResultMarketCleanliness = {
+  clean: 'clean',
+  choppy: 'choppy',
+  trending: 'trending',
+  volatile: 'volatile',
+} as const;
+
+export type SignalQualityResultSetupRarity = typeof SignalQualityResultSetupRarity[keyof typeof SignalQualityResultSetupRarity];
+
+
+export const SignalQualityResultSetupRarity = {
+  common: 'common',
+  moderate: 'moderate',
+  rare: 'rare',
+  exceptional: 'exceptional',
+} as const;
+
+export interface SignalQualityResult {
+  symbol: string;
+  bullishScore: number;
+  bearishScore: number;
+  confidence: number;
+  marketState: string;
+  riskLevel: string;
+  noTradeZone: boolean;
+  supportingSignals: string[];
+  conflictingSignals: string[];
+  cleanSignalScore: number;
+  riskScore: number;
+  confidenceWeight: number;
+  indicatorAlignment: number;
+  momentumConfirmation: number;
+  volatilityCompatibility: number;
+  marketCleanliness: SignalQualityResultMarketCleanliness;
+  setupRarity: SignalQualityResultSetupRarity;
+  alertType: string;
+  expirySeconds: number;
+  historicalBoost: number;
+  patternName: string;
+  historicalSuccessRate: number;
+  historicalTrades: number;
+}
+
 export type SignalAnalysisRiskLevel = typeof SignalAnalysisRiskLevel[keyof typeof SignalAnalysisRiskLevel];
 
 
@@ -390,6 +436,11 @@ limit?: number;
 };
 
 export type GetSignalAnalysisParams = {
+symbol: string;
+granularity?: number;
+};
+
+export type GetSignalQualityParams = {
 symbol: string;
 granularity?: number;
 };
