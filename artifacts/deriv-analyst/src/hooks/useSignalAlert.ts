@@ -1,32 +1,72 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { useGetSignalAnalysis, getGetSignalAnalysisQueryKey } from "@workspace/api-client-react";
-import { useAppStore } from "../store";
+import { useGetSignalQuality, getGetSignalQualityQueryKey } from "@workspace/api-client-react";
+import { useAppStore, AlertFeedEntry, AlertLevel } from "../store";
 
-const CONFIDENCE_THRESHOLD = 70;
-const ALERT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes per symbol
 const POLL_INTERVAL_MS = 15_000;
+const ALERT_COOLDOWN_MS = 4 * 60 * 1000; // 4 min cooldown per symbol+alertType
 
-function signalFingerprint(
-  symbol: string,
-  marketState: string,
-  direction: "bull" | "bear",
-  minuteBucket: number
-) {
-  return `${symbol}:${marketState}:${direction}:${minuteBucket}`;
+interface AlertConfig {
+  label: string;
+  level: AlertLevel;
+  emoji: string;
+  toastType: "success" | "error" | "warning" | "info";
+  minQuality: number;
+}
+
+const ALERT_CONFIGS: Record<string, AlertConfig> = {
+  "High Confidence Bullish": {
+    label: "High Confidence Bullish",
+    level: "bullish",
+    emoji: "🟢",
+    toastType: "success",
+    minQuality: 65,
+  },
+  "High Confidence Bearish": {
+    label: "High Confidence Bearish",
+    level: "bearish",
+    emoji: "🔴",
+    toastType: "error",
+    minQuality: 65,
+  },
+  "Reversal Watch": {
+    label: "Reversal Watch",
+    level: "reversal",
+    emoji: "🔄",
+    toastType: "warning",
+    minQuality: 0,
+  },
+  "Spike Risk Warning": {
+    label: "Spike Risk Warning",
+    level: "spike",
+    emoji: "⚡",
+    toastType: "warning",
+    minQuality: 0,
+  },
+  "No-Trade Warning": {
+    label: "No-Trade Warning",
+    level: "noTrade",
+    emoji: "🛑",
+    toastType: "warning",
+    minQuality: 0,
+  },
+};
+
+function alertFingerprint(symbol: string, alertType: string, bucket: number) {
+  return `${symbol}:${alertType}:${bucket}`;
 }
 
 export function useSignalAlert() {
-  const { selectedSymbol, granularity } = useAppStore();
-
-  // Track last-fired fingerprints per symbol to prevent repeat toasts
+  const { selectedSymbol, granularity, addAlert } = useAppStore();
+  const prevAlertType = useRef<string>("none");
+  const prevConfidence = useRef<number>(0);
   const alerted = useRef<Map<string, number>>(new Map());
 
-  const { data: signals } = useGetSignalAnalysis(
+  const { data: quality } = useGetSignalQuality(
     { symbol: selectedSymbol, granularity },
     {
       query: {
-        queryKey: getGetSignalAnalysisQueryKey({ symbol: selectedSymbol, granularity }),
+        queryKey: getGetSignalQualityQueryKey({ symbol: selectedSymbol, granularity }),
         refetchInterval: POLL_INTERVAL_MS,
         enabled: !!selectedSymbol,
       },
@@ -34,43 +74,89 @@ export function useSignalAlert() {
   );
 
   useEffect(() => {
-    if (!signals) return;
-    if (signals.noTradeZone) return;
-    if (signals.confidence < CONFIDENCE_THRESHOLD) return;
-    if (signals.conflictingSignals.length >= 2) return;
+    if (!quality) return;
 
-    const direction = signals.bullishScore > signals.bearishScore ? "bull" : "bear";
-    const minuteBucket = Math.floor(Date.now() / (5 * 60_000)); // bucket every 5 min
-    const fp = signalFingerprint(selectedSymbol, signals.marketState, direction, minuteBucket);
+    const { alertType, cleanSignalScore, confidenceWeight, marketState, riskLevel,
+      supportingSignals, setupRarity, expirySeconds, bullishScore, bearishScore } = quality;
 
-    const lastFired = alerted.current.get(fp) ?? 0;
-    if (Date.now() - lastFired < ALERT_COOLDOWN_MS) return;
+    if (alertType === "none") {
+      prevAlertType.current = "none";
+      return;
+    }
 
+    const config = ALERT_CONFIGS[alertType];
+    if (!config) return;
+
+    // Quality gate for high-confidence alerts
+    if (
+      (alertType === "High Confidence Bullish" || alertType === "High Confidence Bearish") &&
+      cleanSignalScore < config.minQuality
+    ) {
+      return;
+    }
+
+    // State-change detection — only fire if the alert type changed meaningfully
+    // OR confidence improved significantly (>8 points)
+    const alertTypeChanged = prevAlertType.current !== alertType;
+    const confidenceJump = confidenceWeight - prevConfidence.current > 8;
+    const shouldFire = alertTypeChanged || confidenceJump;
+
+    if (!shouldFire) return;
+
+    // Cooldown check — 4-minute bucket
+    const bucket = Math.floor(Date.now() / ALERT_COOLDOWN_MS);
+    const fp = alertFingerprint(selectedSymbol, alertType, bucket);
+    if (alerted.current.has(fp)) return;
     alerted.current.set(fp, Date.now());
 
-    const isBullish = direction === "bull";
-    const topSignal = signals.supportingSignals[0] ?? "";
-    const emoji = isBullish ? "🟢" : "🔴";
-    const label = isBullish ? "Bullish" : "Bearish";
-    const score = isBullish ? signals.bullishScore : signals.bearishScore;
+    prevAlertType.current = alertType;
+    prevConfidence.current = confidenceWeight;
 
-    toast(
-      `${emoji} ${label} Signal — ${selectedSymbol}`,
-      {
-        description: [
-          `Market: ${signals.marketState}  •  Confidence: ${signals.confidence}%  •  Score: ${score}/100`,
-          topSignal ? `↳ ${topSignal}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
-        duration: 10_000,
-        action: {
-          label: "View Analysis",
-          onClick: () => {
-            window.location.href = `${import.meta.env.BASE_URL}analysis`.replace("//", "/");
-          },
+    const topSignal = supportingSignals[0] ?? "";
+
+    // Build alert feed entry
+    const entry: AlertFeedEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: Date.now(),
+      alertType,
+      level: config.level,
+      symbol: selectedSymbol,
+      confidence: confidenceWeight,
+      cleanSignalScore,
+      marketState,
+      riskLevel,
+      topSignal,
+      setupRarity,
+      expiresAt: Date.now() + expirySeconds * 1000,
+    };
+
+    addAlert(entry);
+
+    // Fire toast with full context
+    const scoreLabel = `Quality ${cleanSignalScore}/100`;
+    const rarityLabel = setupRarity !== "common" ? ` · ${setupRarity.charAt(0).toUpperCase() + setupRarity.slice(1)} setup` : "";
+
+    const description = [
+      `${marketState}  ·  ${scoreLabel}${rarityLabel}`,
+      `Confidence ${confidenceWeight}%  ·  ${alertType.includes("Bullish") ? `Bull ${bullishScore}` : alertType.includes("Bearish") ? `Bear ${bearishScore}` : ""}`,
+      topSignal ? `↳ ${topSignal}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const toastFn = config.toastType === "success" ? toast.success
+      : config.toastType === "error" ? toast.error
+      : toast.warning;
+
+    toastFn(`${config.emoji} ${config.label} — ${selectedSymbol}`, {
+      description,
+      duration: 12_000,
+      action: {
+        label: "View Analysis",
+        onClick: () => {
+          window.location.href = `${import.meta.env.BASE_URL}analysis`.replace("//", "/");
         },
-      }
-    );
-  }, [signals, selectedSymbol]);
+      },
+    });
+  }, [quality, selectedSymbol, addAlert]);
 }

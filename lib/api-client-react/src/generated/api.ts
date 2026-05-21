@@ -38,6 +38,7 @@ import type {
   GetPredictionsParams,
   GetRecentTicksParams,
   GetSignalAnalysisParams,
+  GetSignalQualityParams,
   GetSymbolIndicatorsParams,
   HealthStatus,
   IndicatorSet,
@@ -51,6 +52,7 @@ import type {
   Prediction,
   PredictionInput,
   SignalAnalysis,
+  SignalQualityResult,
   Tick
 } from './api.schemas';
 
@@ -867,6 +869,90 @@ export function useGetSignalAnalysis<TData = Awaited<ReturnType<typeof getSignal
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSignalAnalysisQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSignalQualityUrl = (params: GetSignalQualityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analysis/quality?${stringifiedParams}` : `/api/analysis/quality`
+}
+
+/**
+ * @summary Get signal quality assessment with alert classification
+ */
+export const getSignalQuality = async (params: GetSignalQualityParams, options?: RequestInit): Promise<SignalQualityResult> => {
+
+  return customFetch<SignalQualityResult>(getGetSignalQualityUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSignalQualityQueryKey = (params?: GetSignalQualityParams,) => {
+    return [
+    `/api/analysis/quality`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSignalQualityQueryOptions = <TData = Awaited<ReturnType<typeof getSignalQuality>>, TError = ErrorType<unknown>>(params: GetSignalQualityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignalQuality>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSignalQualityQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSignalQuality>>> = ({ signal }) => getSignalQuality(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSignalQuality>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSignalQualityQueryResult = NonNullable<Awaited<ReturnType<typeof getSignalQuality>>>
+export type GetSignalQualityQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get signal quality assessment with alert classification
+ */
+
+export function useGetSignalQuality<TData = Awaited<ReturnType<typeof getSignalQuality>>, TError = ErrorType<unknown>>(
+ params: GetSignalQualityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSignalQuality>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSignalQualityQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

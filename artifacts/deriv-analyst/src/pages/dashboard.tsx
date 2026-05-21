@@ -1,18 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useAppStore } from "../store";
 import { 
   useGetMarketSummary, 
   getGetMarketSummaryQueryKey,
   useGetCandles,
   getGetCandlesQueryKey,
-  useGetRecentTicks,
-  getGetRecentTicksQueryKey
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Activity, TrendingUp, TrendingDown, AlertTriangle, Zap, Minus, Target } from "lucide-react";
 import { createChart, ColorType, CandlestickSeries, IChartApi, ISeriesApi } from "lightweight-charts";
+import { AlertCenter } from "@/components/AlertCenter";
 
 export default function Dashboard() {
   const { selectedSymbol, granularity } = useAppStore();
@@ -119,6 +118,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Market stats row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-card/50 backdrop-blur">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -147,7 +147,7 @@ export default function Dashboard() {
             {renderTrendIcon(summary?.trend)}
           </CardHeader>
           <CardContent>
-             {isLoadingSummary ? (
+            {isLoadingSummary ? (
               <Skeleton className="h-8 w-32" />
             ) : (
               <div className="flex flex-col gap-2">
@@ -166,7 +166,7 @@ export default function Dashboard() {
             <Zap className={`h-4 w-4 ${getVolatilityColor(summary?.volatility)}`} />
           </CardHeader>
           <CardContent>
-             {isLoadingSummary ? (
+            {isLoadingSummary ? (
               <Skeleton className="h-8 w-24" />
             ) : (
               <div className="flex flex-col gap-1">
@@ -183,7 +183,7 @@ export default function Dashboard() {
             <Target className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-             {isLoadingSummary ? (
+            {isLoadingSummary ? (
               <Skeleton className="h-8 w-full" />
             ) : (
               <div className="flex flex-col gap-2 text-sm font-mono">
@@ -201,22 +201,23 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Spike / reversal banners */}
       {(summary?.spikeDetected || summary?.reversalWarning) && (
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap">
           {summary?.spikeDetected && (
-            <div className="flex-1 bg-destructive/20 border border-destructive/50 text-destructive-foreground px-4 py-3 rounded-lg flex items-center gap-3">
-              <Zap className="h-5 w-5 text-destructive" />
-              <div className="flex flex-col">
-                <span className="font-bold text-sm text-destructive">Spike Detected</span>
+            <div className="flex-1 min-w-[260px] bg-destructive/20 border border-destructive/50 px-4 py-3 rounded-lg flex items-center gap-3">
+              <Zap className="h-5 w-5 text-destructive shrink-0" />
+              <div>
+                <span className="font-bold text-sm text-destructive block">Spike Detected</span>
                 <span className="text-xs opacity-90">Unusual price action registered in the recent ticks.</span>
               </div>
             </div>
           )}
           {summary?.reversalWarning && (
-            <div className="flex-1 bg-orange-500/20 border border-orange-500/50 text-orange-200 px-4 py-3 rounded-lg flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              <div className="flex flex-col">
-                <span className="font-bold text-sm text-orange-500">Reversal Warning</span>
+            <div className="flex-1 min-w-[260px] bg-orange-500/20 border border-orange-500/50 text-orange-200 px-4 py-3 rounded-lg flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-orange-500 shrink-0" />
+              <div>
+                <span className="font-bold text-sm text-orange-500 block">Reversal Warning</span>
                 <span className="text-xs opacity-90">Momentum slowing near key levels. Prepare for possible reversal.</span>
               </div>
             </div>
@@ -224,6 +225,10 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ── Intelligence Alert Center ─────────────────────── */}
+      <AlertCenter />
+
+      {/* Price chart */}
       <Card className="border-border">
         <CardHeader className="pb-4">
           <CardTitle>Price Chart</CardTitle>

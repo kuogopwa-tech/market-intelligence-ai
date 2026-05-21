@@ -1,0 +1,174 @@
+IMPORTANT:
+Do NOT create simple generic alerts.
+
+Build a professional High-Confidence Opportunity Detection system integrated into the existing Signal Merge Engine.
+
+The goal is to notify only when market conditions become statistically clean and aligned.
+
+==================================================
+1. HIGH-CONFIDENCE DETECTION ENGINE
+==================================================
+
+Use existing:
+- signal merge engine
+- market state engine
+- pattern recognition
+- prediction history
+- volatility analysis
+- confidence scoring
+
+Only trigger alerts when:
+- bullish/bearish alignment is strong
+- conflicting indicators are minimal
+- confidence exceeds configurable threshold
+- volatility conditions are acceptable
+- no-trade conditions are absent
+- historical pattern success rate is favorable
+
+==================================================
+2. CLEAN SIGNAL CONDITIONS
+==================================================
+
+Examples of clean setups:
+
+Bullish:
+- RSI above 55
+- MACD bullish crossover
+- EMA bullish alignment
+- ATR moderate
+- volatility stable
+- minimal conflicting signals
+
+Bearish:
+- RSI below 45
+- MACD bearish
+- EMA bearish alignment
+- momentum weakening
+- no reversal warnings
+
+Avoid alerts during:
+- ranging markets
+- spike risk
+- conflicting signals
+- extreme volatility
+- weak momentum
+- uncertain states
+
+==================================================
+3. ALERT TYPES
+==================================================
+
+Create:
+- High Confidence Bullish
+- High Confidence Bearish
+- Reversal Watch
+- Spike Risk Warning
+- No-Trade Warning
+
+==================================================
+4. ALERT DELIVERY SYSTEM
+==================================================
+
+Display:
+- toast notifications
+- dashboard alert center
+- live signal cards
+- timestamped events
+
+Each alert should include:
+- confidence %
+- supporting signals
+- conflicting signals
+- market state
+- risk level
+- expiry timer
+
+==================================================
+5. SIGNAL QUALITY SCORING
+==================================================
+
+Create a signal quality engine.
+
+Score:
+- indicator alignment
+- momentum confirmation
+- volatility compatibility
+- historical success rate
+- market cleanliness
+
+Generate:
+- Clean Signal Score
+- Risk Score
+- Confidence Weight
+
+==================================================
+6. ALERT COOLDOWN SYSTEM
+==================================================
+
+Prevent spam alerts.
+
+Implement:
+- duplicate suppression
+- cooldown timers
+- confidence thresholds
+- state-change detection
+
+Only notify when:
+- conditions meaningfully improve
+- new setups appear
+- confidence changes significantly
+
+==================================================
+7. HISTORICAL SIGNAL VALIDATION
+==================================================
+
+Cross-check new signals against learning memory.
+
+Example:
+
+Current setup resembles a historically successful bearish condition with 68% past success rate.
+
+Use:
+- historical matching
+- probability weighting
+- adaptive confidence boosts
+
+==================================================
+8. ADVANCED DASHBOARD INTEGRATION
+==================================================
+
+Add:
+- live alert feed
+- strongest setup card
+- market cleanliness meter
+- signal quality badge
+- setup rarity indicator
+
+==================================================
+9. IMPORTANT LOGIC RULE
+==================================================
+
+The system must prioritize:
+- quality over quantity
+- filtering over guessing
+- clean setups over constant predictions
+
+The analyzer should behave conservatively and intelligently.
+
+==================================================
+10. FINAL GOAL
+==================================================
+
+Transform the platform from:
+"indicator dashboard"
+
+into:
+"a smart market opportunity intelligence system"
+
+that identifies:
+- high-quality conditions
+- dangerous environments
+- statistically favorable setups
+- low-confidence traps
+
+using adaptive learning and probability-based reasoning.

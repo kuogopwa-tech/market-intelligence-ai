@@ -5,7 +5,8 @@ import { eq, desc } from "drizzle-orm";
 import { getCandles } from "../lib/derivWs";
 import { calculateAllIndicators } from "../lib/indicators";
 import { generateAnalysis } from "../lib/aiService";
-import { mergeSignals } from "../lib/signalEngine";
+import { mergeSignals, computeSignalQuality } from "../lib/signalEngine";
+import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine";
 import { learningMemoryTable } from "@workspace/db";
 import { GenerateAnalysisBody } from "@workspace/api-zod";
 
@@ -172,6 +173,81 @@ router.get("/analysis/history", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to get analysis history");
     res.status(500).json({ error: "Failed to get analysis history" });
+  }
+});
+
+router.get("/analysis/quality", async (req, res) => {
+  const symbol = String(req.query.symbol ?? "R_100");
+  const granularity = parseInt(String(req.query.granularity ?? "60"), 10);
+
+  try {
+    const candles = await getCandles(symbol, granularity, 200);
+    if (candles.length < 20) {
+      res.status(503).json({ error: "Insufficient market data" });
+      return;
+    }
+
+    const indicators = calculateAllIndicators(symbol, candles);
+    const signals = mergeSignals(indicators);
+    const pattern = classifyIndicatorPattern(indicators);
+
+    // Cross-reference pattern history from learning memory
+    const memRows = await db
+      .select()
+      .from(learningMemoryTable)
+      .where(eq(learningMemoryTable.symbol, symbol))
+      .orderBy(desc(learningMemoryTable.createdAt))
+      .limit(100);
+
+    const patternMems = memRows.map((r) => ({
+      patternType: r.patternType,
+      outcome: r.outcome,
+      accuracy: r.accuracy,
+      patternData: r.patternData,
+      symbol: r.symbol,
+    }));
+    const patternStats = computePatternStats(patternMems);
+    const currentPatternStat = patternStats.find((s) => s.pattern === pattern.name);
+
+    const quality = computeSignalQuality(
+      signals,
+      indicators,
+      currentPatternStat
+        ? { successRate: currentPatternStat.successRate, totalTrades: currentPatternStat.totalTrades }
+        : undefined
+    );
+
+    res.json({
+      symbol,
+      // Signal data
+      bullishScore: signals.bullishScore,
+      bearishScore: signals.bearishScore,
+      confidence: signals.confidence,
+      marketState: signals.marketState,
+      riskLevel: signals.riskLevel,
+      noTradeZone: signals.noTradeZone,
+      supportingSignals: signals.supportingSignals,
+      conflictingSignals: signals.conflictingSignals,
+      // Quality data
+      cleanSignalScore: quality.cleanSignalScore,
+      riskScore: quality.riskScore,
+      confidenceWeight: quality.confidenceWeight,
+      indicatorAlignment: quality.indicatorAlignment,
+      momentumConfirmation: quality.momentumConfirmation,
+      volatilityCompatibility: quality.volatilityCompatibility,
+      marketCleanliness: quality.marketCleanliness,
+      setupRarity: quality.setupRarity,
+      alertType: quality.alertType,
+      expirySeconds: quality.expirySeconds,
+      historicalBoost: quality.historicalBoost,
+      // Pattern context
+      patternName: pattern.name,
+      historicalSuccessRate: currentPatternStat?.successRate ?? 0,
+      historicalTrades: currentPatternStat?.totalTrades ?? 0,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get signal quality");
+    res.status(500).json({ error: "Failed to compute signal quality" });
   }
 });
 
