@@ -15,5 +15,9 @@ export interface PredictionInput {
   entryPrice: number;
   /** @nullable */
   analysisId?: number | null;
+  /** @nullable */
+  marketState?: string | null;
+  /** @nullable */
+  expiresAt?: number | null;
   indicators: PredictionInputIndicators;
 }

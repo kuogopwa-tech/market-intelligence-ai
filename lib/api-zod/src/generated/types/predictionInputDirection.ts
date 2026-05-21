@@ -12,4 +12,6 @@ export type PredictionInputDirection = typeof PredictionInputDirection[keyof typ
 export const PredictionInputDirection = {
   rise: 'rise',
   fall: 'fall',
+  range: 'range',
+  uncertain: 'uncertain',
 } as const;

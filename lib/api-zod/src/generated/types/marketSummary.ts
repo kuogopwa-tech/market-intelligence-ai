@@ -21,6 +21,8 @@ export interface MarketSummary {
   momentum: MarketSummaryMomentum;
   marketCondition: MarketSummaryMarketCondition;
   /** @nullable */
+  marketState?: string | null;
+  /** @nullable */
   supportLevel?: number | null;
   /** @nullable */
   resistanceLevel?: number | null;

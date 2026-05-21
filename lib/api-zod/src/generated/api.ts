@@ -88,6 +88,7 @@ export const GetMarketSummaryResponse = zod.object({
   "volatilityValue": zod.number().optional(),
   "momentum": zod.enum(['strong_up', 'up', 'flat', 'down', 'strong_down']),
   "marketCondition": zod.enum(['trending', 'ranging', 'reversing', 'uncertain']),
+  "marketState": zod.string().nullish(),
   "supportLevel": zod.number().nullish(),
   "resistanceLevel": zod.number().nullish(),
   "spikeDetected": zod.boolean().optional(),
@@ -143,6 +144,11 @@ export const GenerateAnalysisResponse = zod.object({
   "fallProbability": zod.number(),
   "confidence": zod.number(),
   "marketCondition": zod.string(),
+  "marketState": zod.string().nullish(),
+  "riskLevel": zod.string().nullish(),
+  "bullishScore": zod.number().nullish(),
+  "bearishScore": zod.number().nullish(),
+  "noTradeZone": zod.boolean().optional(),
   "signals": zod.array(zod.string()),
   "warnings": zod.array(zod.string()),
   "aiModel": zod.string().nullish(),
@@ -166,6 +172,11 @@ export const GetLatestAnalysisResponse = zod.object({
   "fallProbability": zod.number(),
   "confidence": zod.number(),
   "marketCondition": zod.string(),
+  "marketState": zod.string().nullish(),
+  "riskLevel": zod.string().nullish(),
+  "bullishScore": zod.number().nullish(),
+  "bearishScore": zod.number().nullish(),
+  "noTradeZone": zod.boolean().optional(),
   "signals": zod.array(zod.string()),
   "warnings": zod.array(zod.string()),
   "aiModel": zod.string().nullish(),
@@ -192,6 +203,11 @@ export const GetAnalysisHistoryResponseItem = zod.object({
   "fallProbability": zod.number(),
   "confidence": zod.number(),
   "marketCondition": zod.string(),
+  "marketState": zod.string().nullish(),
+  "riskLevel": zod.string().nullish(),
+  "bullishScore": zod.number().nullish(),
+  "bearishScore": zod.number().nullish(),
+  "noTradeZone": zod.boolean().optional(),
   "signals": zod.array(zod.string()),
   "warnings": zod.array(zod.string()),
   "aiModel": zod.string().nullish(),
@@ -199,6 +215,30 @@ export const GetAnalysisHistoryResponseItem = zod.object({
   "createdAt": zod.number()
 })
 export const GetAnalysisHistoryResponse = zod.array(GetAnalysisHistoryResponseItem)
+
+
+/**
+ * @summary Get merged signal analysis for a symbol
+ */
+export const getSignalAnalysisQueryGranularityDefault = 60;
+
+export const GetSignalAnalysisQueryParams = zod.object({
+  "symbol": zod.coerce.string(),
+  "granularity": zod.coerce.number().default(getSignalAnalysisQueryGranularityDefault)
+})
+
+export const GetSignalAnalysisResponse = zod.object({
+  "symbol": zod.string(),
+  "bullishScore": zod.number(),
+  "bearishScore": zod.number(),
+  "neutralScore": zod.number(),
+  "confidence": zod.number(),
+  "riskLevel": zod.enum(['Low', 'Medium', 'High', 'Extreme']),
+  "marketState": zod.enum(['Strong Bullish', 'Weak Bullish', 'Strong Bearish', 'Weak Bearish', 'Ranging', 'Volatile', 'Spike Risk', 'Reversal Watch', 'Uncertain']),
+  "supportingSignals": zod.array(zod.string()),
+  "conflictingSignals": zod.array(zod.string()),
+  "noTradeZone": zod.boolean()
+})
 
 
 /**
@@ -220,10 +260,12 @@ export const GetPredictionsResponseItem = zod.object({
   "exitPrice": zod.number().nullish(),
   "outcome": zod.union([zod.literal('correct'),zod.literal('incorrect'),zod.literal(null)]).nullish(),
   "analysisId": zod.number().nullish(),
+  "marketState": zod.string().nullish(),
   "indicators": zod.object({
 
 }).passthrough().optional(),
   "resolvedAt": zod.number().nullish(),
+  "expiresAt": zod.number().nullish(),
   "createdAt": zod.number()
 })
 export const GetPredictionsResponse = zod.array(GetPredictionsResponseItem)
@@ -234,10 +276,12 @@ export const GetPredictionsResponse = zod.array(GetPredictionsResponseItem)
  */
 export const CreatePredictionBody = zod.object({
   "symbol": zod.string(),
-  "direction": zod.enum(['rise', 'fall']),
+  "direction": zod.enum(['rise', 'fall', 'range', 'uncertain']),
   "confidence": zod.number(),
   "entryPrice": zod.number(),
   "analysisId": zod.number().nullish(),
+  "marketState": zod.string().nullish(),
+  "expiresAt": zod.number().nullish(),
   "indicators": zod.object({
 
 }).passthrough()
@@ -265,10 +309,12 @@ export const UpdatePredictionOutcomeResponse = zod.object({
   "exitPrice": zod.number().nullish(),
   "outcome": zod.union([zod.literal('correct'),zod.literal('incorrect'),zod.literal(null)]).nullish(),
   "analysisId": zod.number().nullish(),
+  "marketState": zod.string().nullish(),
   "indicators": zod.object({
 
 }).passthrough().optional(),
   "resolvedAt": zod.number().nullish(),
+  "expiresAt": zod.number().nullish(),
   "createdAt": zod.number()
 })
 
@@ -285,6 +331,48 @@ export const GetPredictionAccuracyResponseItem = zod.object({
   "accuracy": zod.number()
 })
 export const GetPredictionAccuracyResponse = zod.array(GetPredictionAccuracyResponseItem)
+
+
+/**
+ * @summary Auto-generate a prediction based on current market signals
+ */
+export const AutoPredictionBody = zod.object({
+  "symbol": zod.string()
+})
+
+export const AutoPredictionResponse = zod.object({
+  "generated": zod.boolean(),
+  "reason": zod.string(),
+  "prediction": zod.object({
+  "id": zod.number(),
+  "symbol": zod.string(),
+  "direction": zod.string(),
+  "confidence": zod.number(),
+  "entryPrice": zod.number(),
+  "exitPrice": zod.number().nullish(),
+  "outcome": zod.union([zod.literal('correct'),zod.literal('incorrect'),zod.literal(null)]).nullish(),
+  "analysisId": zod.number().nullish(),
+  "marketState": zod.string().nullish(),
+  "indicators": zod.object({
+
+}).passthrough().optional(),
+  "resolvedAt": zod.number().nullish(),
+  "expiresAt": zod.number().nullish(),
+  "createdAt": zod.number()
+}).optional(),
+  "signals": zod.object({
+  "symbol": zod.string(),
+  "bullishScore": zod.number(),
+  "bearishScore": zod.number(),
+  "neutralScore": zod.number(),
+  "confidence": zod.number(),
+  "riskLevel": zod.enum(['Low', 'Medium', 'High', 'Extreme']),
+  "marketState": zod.enum(['Strong Bullish', 'Weak Bullish', 'Strong Bearish', 'Weak Bearish', 'Ranging', 'Volatile', 'Spike Risk', 'Reversal Watch', 'Uncertain']),
+  "supportingSignals": zod.array(zod.string()),
+  "conflictingSignals": zod.array(zod.string()),
+  "noTradeZone": zod.boolean()
+}).optional()
+})
 
 
 /**
@@ -323,6 +411,54 @@ export const GetMemorySummaryResponse = zod.object({
   "avgAccuracy": zod.number(),
   "topPatterns": zod.array(zod.string()),
   "recentLessons": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Get pattern recognition statistics from historical memory
+ */
+export const GetPatternStatsQueryParams = zod.object({
+  "symbol": zod.coerce.string().optional()
+})
+
+export const GetPatternStatsResponseItem = zod.object({
+  "pattern": zod.string(),
+  "description": zod.string(),
+  "successRate": zod.number(),
+  "totalTrades": zod.number(),
+  "wins": zod.number(),
+  "losses": zod.number(),
+  "dominantDirection": zod.string(),
+  "avgConfidence": zod.number()
+})
+export const GetPatternStatsResponse = zod.array(GetPatternStatsResponseItem)
+
+
+/**
+ * @summary Get AI-generated lessons from historical prediction outcomes
+ */
+export const GetMemoryLessonsQueryParams = zod.object({
+  "symbol": zod.coerce.string().optional()
+})
+
+export const GetMemoryLessonsResponse = zod.object({
+  "lessons": zod.array(zod.object({
+  "lesson": zod.string(),
+  "type": zod.enum(['success', 'warning', 'info']),
+  "pattern": zod.string(),
+  "successRate": zod.number()
+})),
+  "totalPatterns": zod.number(),
+  "patternStats": zod.array(zod.object({
+  "pattern": zod.string(),
+  "description": zod.string(),
+  "successRate": zod.number(),
+  "totalTrades": zod.number(),
+  "wins": zod.number(),
+  "losses": zod.number(),
+  "dominantDirection": zod.string(),
+  "avgConfidence": zod.number()
+}))
 })
 
 
