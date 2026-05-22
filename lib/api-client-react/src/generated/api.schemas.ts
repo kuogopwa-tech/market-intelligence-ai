@@ -133,6 +133,81 @@ export interface IndicatorSet {
   trendStrength?: number | null;
 }
 
+export interface SymbolProfile {
+  symbol: string;
+  displayName: string;
+  market: string;
+  samplesAnalyzed: number;
+  personality: string;
+  avgCleanSignalScore: number;
+  avgConfidence: number;
+  volatilityScore: number;
+  trendReliability: number;
+  reversalFrequency: number;
+  cleanSetupFrequency: number;
+  eliteFrequency: number;
+  dangerousFrequency: number;
+  dominantState: string;
+  dominantAlertType: string;
+  predictabilityScore: number;
+  stabilityScore: number;
+  rhythmScore: number;
+  recentVol: number;
+  recentEvolution: string[];
+}
+
+export interface AnalyticsOverviewResponse {
+  profiles: SymbolProfile[];
+  totalSnapshots: number;
+  symbolsProfiled: number;
+  lastUpdated: number;
+}
+
+export interface TimelineEntry {
+  id: number;
+  snapshotAt: number;
+  cleanSignalScore: number;
+  riskScore: number;
+  confidence: number;
+  marketState: string;
+  priorityLevel: string;
+  alertType: string;
+  marketCleanliness: string;
+  volatilityCompatibility: number;
+  indicatorAlignment: number;
+  momentumConfirmation: number;
+  bullishScore: number;
+  bearishScore: number;
+  noTradeZone: boolean;
+  patternName: string;
+  hour: number;
+}
+
+export interface SymbolTimelineResponse {
+  symbol: string;
+  entries: TimelineEntry[];
+  totalEntries: number;
+}
+
+export interface HeatmapSlot {
+  hour: number;
+  avgQuality: number;
+  avgConfidence: number;
+  sampleCount: number;
+  eliteCount: number;
+  dangerousCount: number;
+  cleanCount: number;
+}
+
+export interface SymbolHeatmapResponse {
+  symbol: string;
+  slots: HeatmapSlot[];
+  bestHour?: number | null;
+  worstHour?: number | null;
+  hasData: boolean;
+  totalSamples: number;
+}
+
 export type SymbolScanResultMarketCleanliness = typeof SymbolScanResultMarketCleanliness[keyof typeof SymbolScanResultMarketCleanliness];
 
 

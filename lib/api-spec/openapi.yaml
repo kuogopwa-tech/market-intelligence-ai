@@ -23,6 +23,8 @@ tags:
     description: AI inference and status
   - name: scanner
     description: Multi-market opportunity scanner and ranking
+  - name: analytics
+    description: Behavioral market analytics, symbol profiling, and timing intelligence
 
 paths:
   /healthz:
@@ -476,6 +478,57 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiStatus"
 
+  /analytics/overview:
+    get:
+      operationId: getAnalyticsOverview
+      tags: [analytics]
+      summary: Symbol personality profiles and behavioral analytics
+      responses:
+        "200":
+          description: Analytics overview with all symbol profiles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsOverviewResponse"
+
+  /analytics/timeline/{symbol}:
+    get:
+      operationId: getSymbolTimeline
+      tags: [analytics]
+      summary: Timeline history for a specific symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Timeline entries for the symbol
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SymbolTimelineResponse"
+
+  /analytics/heatmap/{symbol}:
+    get:
+      operationId: getSymbolHeatmap
+      tags: [analytics]
+      summary: 24-hour quality heatmap for a specific symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Hourly heatmap data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SymbolHeatmapResponse"
+
   /scanner/scan:
     get:
       operationId: getScannerResults
@@ -627,6 +680,160 @@ components:
           type: ["number", "null"]
         trendStrength:
           type: ["number", "null"]
+
+    SymbolProfile:
+      type: object
+      required: [symbol, displayName, market, samplesAnalyzed, personality, avgCleanSignalScore, avgConfidence, volatilityScore, trendReliability, reversalFrequency, cleanSetupFrequency, eliteFrequency, dangerousFrequency, dominantState, dominantAlertType, predictabilityScore, stabilityScore, rhythmScore, recentVol, recentEvolution]
+      properties:
+        symbol:
+          type: string
+        displayName:
+          type: string
+        market:
+          type: string
+        samplesAnalyzed:
+          type: integer
+        personality:
+          type: string
+        avgCleanSignalScore:
+          type: integer
+        avgConfidence:
+          type: integer
+        volatilityScore:
+          type: integer
+        trendReliability:
+          type: integer
+        reversalFrequency:
+          type: integer
+        cleanSetupFrequency:
+          type: integer
+        eliteFrequency:
+          type: integer
+        dangerousFrequency:
+          type: integer
+        dominantState:
+          type: string
+        dominantAlertType:
+          type: string
+        predictabilityScore:
+          type: integer
+        stabilityScore:
+          type: integer
+        rhythmScore:
+          type: integer
+        recentVol:
+          type: integer
+        recentEvolution:
+          type: array
+          items:
+            type: string
+
+    AnalyticsOverviewResponse:
+      type: object
+      required: [profiles, totalSnapshots, symbolsProfiled, lastUpdated]
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/SymbolProfile"
+        totalSnapshots:
+          type: integer
+        symbolsProfiled:
+          type: integer
+        lastUpdated:
+          type: integer
+
+    TimelineEntry:
+      type: object
+      required: [id, snapshotAt, cleanSignalScore, riskScore, confidence, marketState, priorityLevel, alertType, marketCleanliness, volatilityCompatibility, indicatorAlignment, momentumConfirmation, bullishScore, bearishScore, noTradeZone, patternName, hour]
+      properties:
+        id:
+          type: integer
+        snapshotAt:
+          type: integer
+        cleanSignalScore:
+          type: integer
+        riskScore:
+          type: integer
+        confidence:
+          type: integer
+        marketState:
+          type: string
+        priorityLevel:
+          type: string
+        alertType:
+          type: string
+        marketCleanliness:
+          type: string
+        volatilityCompatibility:
+          type: integer
+        indicatorAlignment:
+          type: integer
+        momentumConfirmation:
+          type: integer
+        bullishScore:
+          type: integer
+        bearishScore:
+          type: integer
+        noTradeZone:
+          type: boolean
+        patternName:
+          type: string
+        hour:
+          type: integer
+
+    SymbolTimelineResponse:
+      type: object
+      required: [symbol, entries, totalEntries]
+      properties:
+        symbol:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimelineEntry"
+        totalEntries:
+          type: integer
+
+    HeatmapSlot:
+      type: object
+      required: [hour, avgQuality, avgConfidence, sampleCount, eliteCount, dangerousCount, cleanCount]
+      properties:
+        hour:
+          type: integer
+        avgQuality:
+          type: integer
+        avgConfidence:
+          type: integer
+        sampleCount:
+          type: integer
+        eliteCount:
+          type: integer
+        dangerousCount:
+          type: integer
+        cleanCount:
+          type: integer
+
+    SymbolHeatmapResponse:
+      type: object
+      required: [symbol, slots, hasData, totalSamples]
+      properties:
+        symbol:
+          type: string
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/HeatmapSlot"
+        bestHour:
+          type: integer
+          nullable: true
+        worstHour:
+          type: integer
+          nullable: true
+        hasData:
+          type: boolean
+        totalSamples:
+          type: integer
 
     SymbolScanResult:
       type: object

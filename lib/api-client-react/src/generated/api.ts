@@ -24,6 +24,7 @@ import type {
   AiStatus,
   AnalysisRequest,
   AnalysisResult,
+  AnalyticsOverviewResponse,
   AutoPredictRequest,
   AutoPredictionResult,
   Candle,
@@ -55,6 +56,8 @@ import type {
   ScannerResponse,
   SignalAnalysis,
   SignalQualityResult,
+  SymbolHeatmapResponse,
+  SymbolTimelineResponse,
   Tick
 } from './api.schemas';
 
@@ -1743,6 +1746,237 @@ export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAiStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAnalyticsOverviewUrl = () => {
+
+
+
+
+  return `/api/analytics/overview`
+}
+
+/**
+ * @summary Symbol personality profiles and behavioral analytics
+ */
+export const getAnalyticsOverview = async ( options?: RequestInit): Promise<AnalyticsOverviewResponse> => {
+
+  return customFetch<AnalyticsOverviewResponse>(getGetAnalyticsOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAnalyticsOverviewQueryKey = () => {
+    return [
+    `/api/analytics/overview`
+    ] as const;
+    }
+
+
+export const getGetAnalyticsOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getAnalyticsOverview>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAnalyticsOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalyticsOverview>>> = ({ signal }) => getAnalyticsOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAnalyticsOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalyticsOverview>>>
+export type GetAnalyticsOverviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Symbol personality profiles and behavioral analytics
+ */
+
+export function useGetAnalyticsOverview<TData = Awaited<ReturnType<typeof getAnalyticsOverview>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAnalyticsOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSymbolTimelineUrl = (symbol: string,) => {
+
+
+
+
+  return `/api/analytics/timeline/${symbol}`
+}
+
+/**
+ * @summary Timeline history for a specific symbol
+ */
+export const getSymbolTimeline = async (symbol: string, options?: RequestInit): Promise<SymbolTimelineResponse> => {
+
+  return customFetch<SymbolTimelineResponse>(getGetSymbolTimelineUrl(symbol),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSymbolTimelineQueryKey = (symbol: string,) => {
+    return [
+    `/api/analytics/timeline/${symbol}`
+    ] as const;
+    }
+
+
+export const getGetSymbolTimelineQueryOptions = <TData = Awaited<ReturnType<typeof getSymbolTimeline>>, TError = ErrorType<unknown>>(symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSymbolTimeline>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSymbolTimelineQueryKey(symbol);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSymbolTimeline>>> = ({ signal }) => getSymbolTimeline(symbol, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(symbol), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSymbolTimeline>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSymbolTimelineQueryResult = NonNullable<Awaited<ReturnType<typeof getSymbolTimeline>>>
+export type GetSymbolTimelineQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Timeline history for a specific symbol
+ */
+
+export function useGetSymbolTimeline<TData = Awaited<ReturnType<typeof getSymbolTimeline>>, TError = ErrorType<unknown>>(
+ symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSymbolTimeline>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSymbolTimelineQueryOptions(symbol,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSymbolHeatmapUrl = (symbol: string,) => {
+
+
+
+
+  return `/api/analytics/heatmap/${symbol}`
+}
+
+/**
+ * @summary 24-hour quality heatmap for a specific symbol
+ */
+export const getSymbolHeatmap = async (symbol: string, options?: RequestInit): Promise<SymbolHeatmapResponse> => {
+
+  return customFetch<SymbolHeatmapResponse>(getGetSymbolHeatmapUrl(symbol),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSymbolHeatmapQueryKey = (symbol: string,) => {
+    return [
+    `/api/analytics/heatmap/${symbol}`
+    ] as const;
+    }
+
+
+export const getGetSymbolHeatmapQueryOptions = <TData = Awaited<ReturnType<typeof getSymbolHeatmap>>, TError = ErrorType<unknown>>(symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSymbolHeatmap>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSymbolHeatmapQueryKey(symbol);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSymbolHeatmap>>> = ({ signal }) => getSymbolHeatmap(symbol, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(symbol), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSymbolHeatmap>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSymbolHeatmapQueryResult = NonNullable<Awaited<ReturnType<typeof getSymbolHeatmap>>>
+export type GetSymbolHeatmapQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary 24-hour quality heatmap for a specific symbol
+ */
+
+export function useGetSymbolHeatmap<TData = Awaited<ReturnType<typeof getSymbolHeatmap>>, TError = ErrorType<unknown>>(
+ symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSymbolHeatmap>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSymbolHeatmapQueryOptions(symbol,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

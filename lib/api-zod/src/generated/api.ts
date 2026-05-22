@@ -512,6 +512,95 @@ export const GetAiStatusResponse = zod.object({
 
 
 /**
+ * @summary Symbol personality profiles and behavioral analytics
+ */
+export const GetAnalyticsOverviewResponse = zod.object({
+  "profiles": zod.array(zod.object({
+  "symbol": zod.string(),
+  "displayName": zod.string(),
+  "market": zod.string(),
+  "samplesAnalyzed": zod.number(),
+  "personality": zod.string(),
+  "avgCleanSignalScore": zod.number(),
+  "avgConfidence": zod.number(),
+  "volatilityScore": zod.number(),
+  "trendReliability": zod.number(),
+  "reversalFrequency": zod.number(),
+  "cleanSetupFrequency": zod.number(),
+  "eliteFrequency": zod.number(),
+  "dangerousFrequency": zod.number(),
+  "dominantState": zod.string(),
+  "dominantAlertType": zod.string(),
+  "predictabilityScore": zod.number(),
+  "stabilityScore": zod.number(),
+  "rhythmScore": zod.number(),
+  "recentVol": zod.number(),
+  "recentEvolution": zod.array(zod.string())
+})),
+  "totalSnapshots": zod.number(),
+  "symbolsProfiled": zod.number(),
+  "lastUpdated": zod.number()
+})
+
+
+/**
+ * @summary Timeline history for a specific symbol
+ */
+export const GetSymbolTimelineParams = zod.object({
+  "symbol": zod.coerce.string()
+})
+
+export const GetSymbolTimelineResponse = zod.object({
+  "symbol": zod.string(),
+  "entries": zod.array(zod.object({
+  "id": zod.number(),
+  "snapshotAt": zod.number(),
+  "cleanSignalScore": zod.number(),
+  "riskScore": zod.number(),
+  "confidence": zod.number(),
+  "marketState": zod.string(),
+  "priorityLevel": zod.string(),
+  "alertType": zod.string(),
+  "marketCleanliness": zod.string(),
+  "volatilityCompatibility": zod.number(),
+  "indicatorAlignment": zod.number(),
+  "momentumConfirmation": zod.number(),
+  "bullishScore": zod.number(),
+  "bearishScore": zod.number(),
+  "noTradeZone": zod.boolean(),
+  "patternName": zod.string(),
+  "hour": zod.number()
+})),
+  "totalEntries": zod.number()
+})
+
+
+/**
+ * @summary 24-hour quality heatmap for a specific symbol
+ */
+export const GetSymbolHeatmapParams = zod.object({
+  "symbol": zod.coerce.string()
+})
+
+export const GetSymbolHeatmapResponse = zod.object({
+  "symbol": zod.string(),
+  "slots": zod.array(zod.object({
+  "hour": zod.number(),
+  "avgQuality": zod.number(),
+  "avgConfidence": zod.number(),
+  "sampleCount": zod.number(),
+  "eliteCount": zod.number(),
+  "dangerousCount": zod.number(),
+  "cleanCount": zod.number()
+})),
+  "bestHour": zod.number().nullish(),
+  "worstHour": zod.number().nullish(),
+  "hasData": zod.boolean(),
+  "totalSamples": zod.number()
+})
+
+
+/**
  * @summary Scan all markets and rank by opportunity quality
  */
 export const getScannerResultsQueryGranularityDefault = 60;

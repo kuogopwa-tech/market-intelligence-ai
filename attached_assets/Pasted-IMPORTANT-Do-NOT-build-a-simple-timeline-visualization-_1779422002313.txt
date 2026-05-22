@@ -1,0 +1,205 @@
+IMPORTANT:
+Do NOT build a simple timeline visualization only.
+
+Build a Behavioral Market Analytics and Opportunity Timing Engine integrated into the existing scanner, memory system, and pattern recognition architecture.
+
+The goal is to detect recurring behavioral tendencies, timing windows, setup rhythms, and symbol personality patterns over time.
+
+==================================================
+1. OPPORTUNITY TIMELINE ENGINE
+==================================================
+
+Track how each symbol's market state changes over time.
+
+Store timeline history for:
+- signal quality
+- confidence
+- market state
+- volatility condition
+- opportunity rank
+- risk score
+- alert type
+- cleanliness level
+
+Display:
+- timeline graphs
+- state transitions
+- confidence evolution
+- setup duration
+- volatility cycles
+
+==================================================
+2. SYMBOL BEHAVIOR PROFILING
+==================================================
+
+Create adaptive personality profiles for each market.
+
+Examples:
+- frequently volatile
+- stable trend behavior
+- reversal-heavy
+- spike-prone
+- clean momentum mover
+- noisy/ranging tendency
+
+Generate:
+- symbol personality score
+- volatility fingerprint
+- trend reliability
+- reversal frequency
+- clean setup frequency
+
+==================================================
+3. SESSION & TIMING ANALYTICS
+==================================================
+
+Analyze recurring timing behavior.
+
+Detect:
+- when clean setups most commonly appear
+- when spike risks increase
+- when volatility expands
+- when momentum weakens
+- best hours for each symbol
+- dangerous periods
+- recurring market rhythms
+
+Generate:
+- setup timing heatmaps
+- best opportunity windows
+- volatility timing patterns
+- session reliability scores
+
+==================================================
+4. OPPORTUNITY EVOLUTION TRACKING
+==================================================
+
+Track how setups evolve over time.
+
+Example:
+
+R_75:
+Watchlist
+→ Moderate
+→ High Confidence
+→ Elite Opportunity
+→ Reversal Warning
+
+Display:
+- state progression
+- setup strengthening
+- setup weakening
+- confidence shifts
+- momentum changes
+
+==================================================
+5. BEHAVIORAL PATTERN DETECTION
+==================================================
+
+Detect recurring market behaviors such as:
+- fake breakout sequences
+- volatility expansion cycles
+- reversal clusters
+- momentum exhaustion
+- spike-preceding conditions
+- trend continuation patterns
+
+Cross-reference with:
+- historical outcomes
+- pattern memory
+- success rates
+- market conditions
+
+==================================================
+6. MARKET RHYTHM ANALYSIS
+==================================================
+
+Create adaptive rhythm tracking.
+
+Measure:
+- frequency of clean setups
+- average setup lifespan
+- average volatility cycle duration
+- momentum persistence
+- trend consistency
+
+Generate:
+- market rhythm score
+- stability score
+- predictability score
+- setup reliability index
+
+==================================================
+7. ADVANCED DASHBOARD FEATURES
+==================================================
+
+Add:
+- Opportunity Timeline page
+- Symbol Personality cards
+- Session Heatmaps
+- Volatility Rhythm charts
+- Setup Evolution Tracker
+- Market Rhythm meter
+- Behavioral analytics dashboard
+
+==================================================
+8. ADAPTIVE LEARNING INTEGRATION
+==================================================
+
+Use historical learning memory to refine:
+- timing probabilities
+- confidence weighting
+- volatility expectations
+- session reliability
+- symbol behavior models
+
+Example:
+
+Volatility 75 historically produces cleaner bearish setups during high-volatility evening sessions with 69% success probability.
+
+==================================================
+9. PERFORMANCE OPTIMIZATION
+==================================================
+
+Optimize carefully for long-term history tracking.
+
+Requirements:
+- efficient timeline storage
+- compressed historical aggregation
+- batched analytics processing
+- lazy-loaded historical data
+- minimal dashboard rendering cost
+- scalable analytics architecture
+
+==================================================
+10. IMPORTANT SYSTEM BEHAVIOR
+==================================================
+
+The system should evolve from:
+"finding opportunities"
+
+into:
+"understanding market behavior over time."
+
+The platform should identify:
+- when markets become reliable
+- when setups usually fail
+- when volatility becomes dangerous
+- when trends historically sustain
+- when certain symbols behave predictably
+
+==================================================
+11. FINAL GOAL
+==================================================
+
+Transform the platform into:
+
+a behavioral AI market intelligence system
+
+capable of:
+- learning symbol personalities
+- detecting recurring timing windows
+- tracking evolving opportunities
+- identifying behavioral cycles
+- understanding market rhythm
+- adapting confidence using historical behavior analytics.
