@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/dashboard";
 import Scanner from "@/pages/scanner";
+import Analytics from "@/pages/analytics";
 import Indicators from "@/pages/indicators";
 import Analysis from "@/pages/analysis";
 import Predictions from "@/pages/predictions";
@@ -21,6 +22,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/scanner" component={Scanner} />
+        <Route path="/analytics" component={Analytics} />
         <Route path="/indicators" component={Indicators} />
         <Route path="/analysis" component={Analysis} />
         <Route path="/predictions" component={Predictions} />

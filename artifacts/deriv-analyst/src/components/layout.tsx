@@ -11,6 +11,7 @@ import {
   Database, 
   Settings,
   ScanSearch,
+  LineChart,
 } from "lucide-react";
 import {
   Select,
@@ -27,6 +28,7 @@ interface LayoutProps {
 
 const NAV_ITEMS: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { href: "/scanner", label: "Scanner", icon: ScanSearch },
+  { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/", label: "Dashboard", icon: Activity },
   { href: "/indicators", label: "Indicators", icon: BarChart2 },
   { href: "/analysis", label: "AI Analysis", icon: BrainCircuit },

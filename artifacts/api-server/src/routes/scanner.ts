@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { learningMemoryTable } from "@workspace/db";
+import { learningMemoryTable, symbolTimelineTable } from "@workspace/db";
 import { desc } from "drizzle-orm";
 import { SUPPORTED_SYMBOLS, getCandles } from "../lib/derivWs";
 import { calculateAllIndicators } from "../lib/indicators";
@@ -210,6 +210,41 @@ router.get("/scanner/scan", async (req, res) => {
       safest,
       mostDangerous,
     });
+
+    // Save timeline snapshots in background — non-blocking
+    void (async () => {
+      try {
+        const now = new Date();
+        const hour = now.getUTCHours();
+        const dayOfWeek = now.getUTCDay();
+        await db.insert(symbolTimelineTable).values(
+          validResults.map((r) => ({
+            symbol: r.symbol,
+            snapshotAt: now,
+            hour,
+            dayOfWeek,
+            cleanSignalScore: Math.round(r.cleanSignalScore),
+            riskScore: Math.round(r.riskScore),
+            confidence: Math.round(r.confidence),
+            marketState: r.marketState,
+            riskLevel: r.riskLevel,
+            volatilityCompatibility: Math.round(r.volatilityCompatibility),
+            indicatorAlignment: Math.round(r.indicatorAlignment),
+            momentumConfirmation: Math.round(r.momentumConfirmation),
+            alertType: r.alertType,
+            priorityLevel: r.priorityLevel,
+            marketCleanliness: r.marketCleanliness,
+            setupRarity: r.setupRarity,
+            bullishScore: Math.round(r.bullishScore),
+            bearishScore: Math.round(r.bearishScore),
+            noTradeZone: r.noTradeZone,
+            patternName: r.patternName,
+          }))
+        );
+      } catch {
+        // Non-critical — never block the response
+      }
+    })();
   } catch (err) {
     req.log.error({ err }, "Scanner scan failed");
     res.status(500).json({ error: "Scanner failed" });
