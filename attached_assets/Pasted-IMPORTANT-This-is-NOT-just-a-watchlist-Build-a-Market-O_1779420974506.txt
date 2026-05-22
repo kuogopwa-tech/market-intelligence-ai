@@ -1,0 +1,197 @@
+IMPORTANT:
+This is NOT just a watchlist.
+
+Build a Market Opportunity Scanner and Ranking System integrated into the existing intelligence architecture.
+
+The goal is to automatically scan multiple Deriv markets simultaneously and rank them by setup quality, cleanliness, confidence, and historical probability.
+
+==================================================
+1. MULTI-SYMBOL MARKET SCANNER
+==================================================
+
+Continuously scan all supported symbols:
+- Volatility 10
+- Volatility 25
+- Volatility 50
+- Volatility 75
+- Volatility 100
+- 1-second variants
+- forex pairs
+
+For each symbol calculate:
+- signal quality score
+- confidence
+- risk score
+- market state
+- cleanliness
+- volatility compatibility
+- historical setup success rate
+
+==================================================
+2. MARKET RANKING ENGINE
+==================================================
+
+Rank markets from best to worst opportunities.
+
+Ranking should prioritize:
+- clean indicator alignment
+- strong momentum confirmation
+- acceptable volatility
+- low conflict levels
+- historical pattern success
+- rarity of setup
+- stable market structure
+
+Generate:
+- Top Opportunity
+- Safest Setup
+- Highest Momentum
+- Highest Risk
+- Cleanest Market
+- Most Dangerous Market
+
+==================================================
+3. LIVE MARKET MATRIX
+==================================================
+
+Create a professional scanner dashboard.
+
+Display all symbols in a live matrix/table showing:
+- symbol
+- market state
+- signal quality
+- bullish/bearish bias
+- confidence
+- risk level
+- volatility condition
+- setup rarity
+- active alerts
+- historical success %
+- cleanliness score
+
+Use:
+- color-coded states
+- sortable columns
+- filtering
+- live updating rows
+
+==================================================
+4. SMART OPPORTUNITY DETECTION
+==================================================
+
+Only highlight symbols when:
+- signal quality exceeds threshold
+- confidence is strong
+- risk is acceptable
+- no-trade state absent
+- historical pattern probability favorable
+
+Suppress:
+- noisy markets
+- dangerous volatility
+- conflicting setups
+- weak momentum environments
+
+==================================================
+5. OPPORTUNITY PRIORITY SYSTEM
+==================================================
+
+Create priority levels:
+- Elite Opportunity
+- High Confidence
+- Moderate Setup
+- Watchlist Only
+- Dangerous
+- Avoid Market
+
+The scanner should aggressively filter weak setups.
+
+==================================================
+6. HISTORICAL PROBABILITY WEIGHTING
+==================================================
+
+Cross-reference current conditions against:
+- prediction history
+- pattern memory
+- historical success rates
+- previous volatility conditions
+
+Example:
+
+Current setup closely matches a historically successful bullish structure with 72% past success rate on Volatility 75.
+
+==================================================
+7. LIVE ALERT INTEGRATION
+==================================================
+
+Scanner should integrate with existing alert system.
+
+Trigger alerts only when:
+- a market enters Elite Opportunity state
+- confidence rises significantly
+- setup quality improves sharply
+- a clean setup emerges after uncertainty
+
+==================================================
+8. PERFORMANCE OPTIMIZATION
+==================================================
+
+Optimize scanner carefully.
+
+Requirements:
+- efficient multi-symbol websocket handling
+- shared indicator calculations
+- batched updates
+- throttled rendering
+- minimal frontend re-renders
+- low RAM usage
+- asynchronous scanning
+
+The scanner must remain smooth even while tracking many symbols simultaneously.
+
+==================================================
+9. ADVANCED DASHBOARD FEATURES
+==================================================
+
+Add:
+- Top Opportunity card
+- Best Bullish Setup
+- Best Bearish Setup
+- Cleanest Market
+- Market Heatmap
+- Opportunity Timeline
+- Live scanner feed
+- Elite Setup banner
+
+==================================================
+10. IMPORTANT SYSTEM BEHAVIOR
+==================================================
+
+The scanner must behave conservatively.
+
+It should prioritize:
+- quality over quantity
+- filtering over guessing
+- clean probability over aggressive prediction
+
+The goal is:
+NOT to predict constantly,
+BUT to detect statistically favorable environments.
+
+==================================================
+11. FINAL GOAL
+==================================================
+
+Transform the current platform from:
+"a single-symbol analyzer"
+
+into:
+"a professional multi-market intelligence scanner"
+
+capable of:
+- scanning all markets simultaneously
+- ranking setup quality
+- detecting clean opportunities
+- filtering dangerous environments
+- surfacing statistically favorable conditions
+- adapting using historical learning data.

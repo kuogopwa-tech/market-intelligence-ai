@@ -6,6 +6,7 @@ import { Layout } from "@/components/layout";
 import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/dashboard";
+import Scanner from "@/pages/scanner";
 import Indicators from "@/pages/indicators";
 import Analysis from "@/pages/analysis";
 import Predictions from "@/pages/predictions";
@@ -19,6 +20,7 @@ function Router() {
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/scanner" component={Scanner} />
         <Route path="/indicators" component={Indicators} />
         <Route path="/analysis" component={Analysis} />
         <Route path="/predictions" component={Predictions} />
