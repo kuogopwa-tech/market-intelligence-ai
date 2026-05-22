@@ -37,6 +37,7 @@ import type {
   GetPatternStatsParams,
   GetPredictionsParams,
   GetRecentTicksParams,
+  GetScannerResultsParams,
   GetSignalAnalysisParams,
   GetSignalQualityParams,
   GetSymbolIndicatorsParams,
@@ -51,6 +52,7 @@ import type {
   PatternStat,
   Prediction,
   PredictionInput,
+  ScannerResponse,
   SignalAnalysis,
   SignalQualityResult,
   Tick
@@ -1741,6 +1743,90 @@ export function useGetAiStatus<TData = Awaited<ReturnType<typeof getAiStatus>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAiStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetScannerResultsUrl = (params?: GetScannerResultsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/scanner/scan?${stringifiedParams}` : `/api/scanner/scan`
+}
+
+/**
+ * @summary Scan all markets and rank by opportunity quality
+ */
+export const getScannerResults = async (params?: GetScannerResultsParams, options?: RequestInit): Promise<ScannerResponse> => {
+
+  return customFetch<ScannerResponse>(getGetScannerResultsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetScannerResultsQueryKey = (params?: GetScannerResultsParams,) => {
+    return [
+    `/api/scanner/scan`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetScannerResultsQueryOptions = <TData = Awaited<ReturnType<typeof getScannerResults>>, TError = ErrorType<unknown>>(params?: GetScannerResultsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getScannerResults>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetScannerResultsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getScannerResults>>> = ({ signal }) => getScannerResults(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getScannerResults>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetScannerResultsQueryResult = NonNullable<Awaited<ReturnType<typeof getScannerResults>>>
+export type GetScannerResultsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Scan all markets and rank by opportunity quality
+ */
+
+export function useGetScannerResults<TData = Awaited<ReturnType<typeof getScannerResults>>, TError = ErrorType<unknown>>(
+ params?: GetScannerResultsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getScannerResults>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetScannerResultsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

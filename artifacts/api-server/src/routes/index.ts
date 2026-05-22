@@ -6,6 +6,7 @@ import analysisRouter from "./analysis";
 import predictionsRouter from "./predictions";
 import memoryRouter from "./memory";
 import aiRouter from "./ai";
+import scannerRouter from "./scanner";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(analysisRouter);
 router.use(predictionsRouter);
 router.use(memoryRouter);
 router.use(aiRouter);
+router.use(scannerRouter);
 
 export default router;

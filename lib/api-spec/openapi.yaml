@@ -21,6 +21,8 @@ tags:
     description: AI learning memory
   - name: ai
     description: AI inference and status
+  - name: scanner
+    description: Multi-market opportunity scanner and ranking
 
 paths:
   /healthz:
@@ -474,6 +476,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiStatus"
 
+  /scanner/scan:
+    get:
+      operationId: getScannerResults
+      tags: [scanner]
+      summary: Scan all markets and rank by opportunity quality
+      parameters:
+        - name: granularity
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 60
+      responses:
+        "200":
+          description: Scanner results for all markets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScannerResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -605,6 +627,104 @@ components:
           type: ["number", "null"]
         trendStrength:
           type: ["number", "null"]
+
+    SymbolScanResult:
+      type: object
+      required: [symbol, displayName, market, bullishScore, bearishScore, confidence, marketState, riskLevel, noTradeZone, supportingSignals, conflictingSignals, cleanSignalScore, riskScore, confidenceWeight, indicatorAlignment, momentumConfirmation, volatilityCompatibility, marketCleanliness, setupRarity, alertType, expirySeconds, historicalBoost, patternName, historicalSuccessRate, historicalTrades, priorityLevel]
+      properties:
+        symbol:
+          type: string
+        displayName:
+          type: string
+        market:
+          type: string
+        bullishScore:
+          type: number
+        bearishScore:
+          type: number
+        confidence:
+          type: number
+        marketState:
+          type: string
+        riskLevel:
+          type: string
+        noTradeZone:
+          type: boolean
+        supportingSignals:
+          type: array
+          items:
+            type: string
+        conflictingSignals:
+          type: array
+          items:
+            type: string
+        cleanSignalScore:
+          type: number
+        riskScore:
+          type: number
+        confidenceWeight:
+          type: number
+        indicatorAlignment:
+          type: number
+        momentumConfirmation:
+          type: number
+        volatilityCompatibility:
+          type: number
+        marketCleanliness:
+          type: string
+          enum: [clean, choppy, trending, volatile]
+        setupRarity:
+          type: string
+          enum: [common, moderate, rare, exceptional]
+        alertType:
+          type: string
+        expirySeconds:
+          type: integer
+        historicalBoost:
+          type: number
+        patternName:
+          type: string
+        historicalSuccessRate:
+          type: number
+        historicalTrades:
+          type: integer
+        priorityLevel:
+          type: string
+
+    ScannerResponse:
+      type: object
+      required: [scannedAt, totalSymbols, eliteCount, highConfidenceCount, results]
+      properties:
+        scannedAt:
+          type: integer
+        totalSymbols:
+          type: integer
+        eliteCount:
+          type: integer
+        highConfidenceCount:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SymbolScanResult"
+        topOpportunity:
+          $ref: "#/components/schemas/SymbolScanResult"
+          nullable: true
+        bestBullish:
+          $ref: "#/components/schemas/SymbolScanResult"
+          nullable: true
+        bestBearish:
+          $ref: "#/components/schemas/SymbolScanResult"
+          nullable: true
+        cleanest:
+          $ref: "#/components/schemas/SymbolScanResult"
+          nullable: true
+        safest:
+          $ref: "#/components/schemas/SymbolScanResult"
+          nullable: true
+        mostDangerous:
+          $ref: "#/components/schemas/SymbolScanResult"
+          nullable: true
 
     SignalQualityResult:
       type: object

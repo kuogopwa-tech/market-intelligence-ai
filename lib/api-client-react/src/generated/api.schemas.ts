@@ -133,6 +133,69 @@ export interface IndicatorSet {
   trendStrength?: number | null;
 }
 
+export type SymbolScanResultMarketCleanliness = typeof SymbolScanResultMarketCleanliness[keyof typeof SymbolScanResultMarketCleanliness];
+
+
+export const SymbolScanResultMarketCleanliness = {
+  clean: 'clean',
+  choppy: 'choppy',
+  trending: 'trending',
+  volatile: 'volatile',
+} as const;
+
+export type SymbolScanResultSetupRarity = typeof SymbolScanResultSetupRarity[keyof typeof SymbolScanResultSetupRarity];
+
+
+export const SymbolScanResultSetupRarity = {
+  common: 'common',
+  moderate: 'moderate',
+  rare: 'rare',
+  exceptional: 'exceptional',
+} as const;
+
+export interface SymbolScanResult {
+  symbol: string;
+  displayName: string;
+  market: string;
+  bullishScore: number;
+  bearishScore: number;
+  confidence: number;
+  marketState: string;
+  riskLevel: string;
+  noTradeZone: boolean;
+  supportingSignals: string[];
+  conflictingSignals: string[];
+  cleanSignalScore: number;
+  riskScore: number;
+  confidenceWeight: number;
+  indicatorAlignment: number;
+  momentumConfirmation: number;
+  volatilityCompatibility: number;
+  marketCleanliness: SymbolScanResultMarketCleanliness;
+  setupRarity: SymbolScanResultSetupRarity;
+  alertType: string;
+  expirySeconds: number;
+  historicalBoost: number;
+  patternName: string;
+  historicalSuccessRate: number;
+  historicalTrades: number;
+  priorityLevel: string;
+}
+
+export interface ScannerResponse {
+  scannedAt: number;
+  totalSymbols: number;
+  eliteCount: number;
+  highConfidenceCount: number;
+  results: SymbolScanResult[];
+  topOpportunity?: SymbolScanResult | null;
+  bestBullish?: SymbolScanResult | null;
+  bestBearish?: SymbolScanResult | null;
+  cleanest?: SymbolScanResult | null;
+  safest?: SymbolScanResult | null;
+  mostDangerous?: SymbolScanResult | null;
+}
+
 export type SignalQualityResultMarketCleanliness = typeof SignalQualityResultMarketCleanliness[keyof typeof SignalQualityResultMarketCleanliness];
 
 
@@ -465,5 +528,9 @@ symbol?: string;
 
 export type GetMemoryLessonsParams = {
 symbol?: string;
+};
+
+export type GetScannerResultsParams = {
+granularity?: number;
 };
 

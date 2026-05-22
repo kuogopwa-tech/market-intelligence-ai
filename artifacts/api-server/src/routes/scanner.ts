@@ -1,0 +1,219 @@
+import { Router } from "express";
+import { db } from "@workspace/db";
+import { learningMemoryTable } from "@workspace/db";
+import { desc } from "drizzle-orm";
+import { SUPPORTED_SYMBOLS, getCandles } from "../lib/derivWs";
+import { calculateAllIndicators } from "../lib/indicators";
+import { mergeSignals, computeSignalQuality } from "../lib/signalEngine";
+import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine";
+
+const router = Router();
+
+const PRIORITY_ORDER = [
+  "Elite Opportunity",
+  "High Confidence",
+  "Moderate Setup",
+  "Watchlist Only",
+  "Dangerous",
+  "Avoid Market",
+];
+
+function classifyPriority(
+  noTradeZone: boolean,
+  cleanSignalScore: number,
+  confidenceWeight: number,
+  riskScore: number,
+  marketState: string,
+  conflictsLen: number
+): string {
+  if (
+    !noTradeZone &&
+    cleanSignalScore >= 78 &&
+    confidenceWeight >= 68 &&
+    conflictsLen <= 1
+  ) {
+    return "Elite Opportunity";
+  }
+  if (!noTradeZone && cleanSignalScore >= 65 && confidenceWeight >= 60) {
+    return "High Confidence";
+  }
+  if (!noTradeZone && cleanSignalScore >= 50) {
+    return "Moderate Setup";
+  }
+  if (riskScore >= 72 || marketState === "Spike Risk") {
+    return "Dangerous";
+  }
+  if (noTradeZone || cleanSignalScore < 30) {
+    return "Avoid Market";
+  }
+  return "Watchlist Only";
+}
+
+router.get("/scanner/scan", async (req, res) => {
+  const granularity = parseInt(String(req.query.granularity ?? "60"), 10);
+
+  try {
+    // Load all learning memory once — filter per-symbol in memory
+    const allMemory = await db
+      .select()
+      .from(learningMemoryTable)
+      .orderBy(desc(learningMemoryTable.createdAt))
+      .limit(600);
+
+    const memoryBySymbol = new Map<string, typeof allMemory>();
+    for (const row of allMemory) {
+      if (!memoryBySymbol.has(row.symbol)) memoryBySymbol.set(row.symbol, []);
+      memoryBySymbol.get(row.symbol)!.push(row);
+    }
+
+    // Scan all symbols in parallel
+    type ScanResult = {
+      symbol: string; displayName: string; market: string;
+      bullishScore: number; bearishScore: number; confidence: number;
+      marketState: string; riskLevel: string; noTradeZone: boolean;
+      supportingSignals: string[]; conflictingSignals: string[];
+      cleanSignalScore: number; riskScore: number; confidenceWeight: number;
+      indicatorAlignment: number; momentumConfirmation: number; volatilityCompatibility: number;
+      marketCleanliness: string; setupRarity: string; alertType: string;
+      expirySeconds: number; historicalBoost: number;
+      patternName: string; historicalSuccessRate: number; historicalTrades: number;
+      priorityLevel: string;
+    };
+
+    const scanTasks: Promise<ScanResult | null>[] = SUPPORTED_SYMBOLS.map(async (sym) => {
+      try {
+        const candles = await getCandles(sym.symbol, granularity, 200);
+        if (candles.length < 20) return null;
+
+        const indicators = calculateAllIndicators(sym.symbol, candles);
+        const signals = mergeSignals(indicators);
+        const pattern = classifyIndicatorPattern(indicators);
+
+        const symMemory = (memoryBySymbol.get(sym.symbol) ?? []).map((r) => ({
+          patternType: r.patternType,
+          outcome: r.outcome,
+          accuracy: r.accuracy,
+          patternData: r.patternData,
+          symbol: r.symbol,
+        }));
+
+        const patternStats = computePatternStats(symMemory);
+        const currentPatternStat = patternStats.find(
+          (s) => s.pattern === pattern.name
+        );
+
+        const quality = computeSignalQuality(
+          signals,
+          indicators,
+          currentPatternStat
+            ? {
+                successRate: currentPatternStat.successRate,
+                totalTrades: currentPatternStat.totalTrades,
+              }
+            : undefined
+        );
+
+        const priorityLevel = classifyPriority(
+          signals.noTradeZone,
+          quality.cleanSignalScore,
+          quality.confidenceWeight,
+          quality.riskScore,
+          signals.marketState,
+          signals.conflictingSignals.length
+        );
+
+        return {
+          symbol: sym.symbol,
+          displayName: sym.displayName,
+          market: sym.market,
+          // Signal fields
+          bullishScore: signals.bullishScore,
+          bearishScore: signals.bearishScore,
+          confidence: signals.confidence,
+          marketState: signals.marketState,
+          riskLevel: signals.riskLevel,
+          noTradeZone: signals.noTradeZone,
+          supportingSignals: signals.supportingSignals,
+          conflictingSignals: signals.conflictingSignals,
+          // Quality fields
+          cleanSignalScore: quality.cleanSignalScore,
+          riskScore: quality.riskScore,
+          confidenceWeight: quality.confidenceWeight,
+          indicatorAlignment: quality.indicatorAlignment,
+          momentumConfirmation: quality.momentumConfirmation,
+          volatilityCompatibility: quality.volatilityCompatibility,
+          marketCleanliness: quality.marketCleanliness,
+          setupRarity: quality.setupRarity,
+          alertType: quality.alertType,
+          expirySeconds: quality.expirySeconds,
+          historicalBoost: quality.historicalBoost,
+          // Pattern
+          patternName: pattern.name,
+          historicalSuccessRate: currentPatternStat?.successRate ?? 0,
+          historicalTrades: currentPatternStat?.totalTrades ?? 0,
+          // Ranking
+          priorityLevel,
+        };
+      } catch {
+        return null;
+      }
+    });
+
+    const settled = await Promise.allSettled(scanTasks);
+    const validResults: ScanResult[] = settled
+      .filter(
+        (r): r is PromiseFulfilledResult<ScanResult> =>
+          r.status === "fulfilled" && r.value !== null
+      )
+      .map((r) => r.value);
+
+    // Sort by priority tier, then by cleanSignalScore desc within tier
+    validResults.sort((a, b) => {
+      const ai = PRIORITY_ORDER.indexOf(a.priorityLevel);
+      const bi = PRIORITY_ORDER.indexOf(b.priorityLevel);
+      if (ai !== bi) return ai - bi;
+      return b.cleanSignalScore - a.cleanSignalScore;
+    });
+
+    const nonDangerous = validResults.filter(
+      (r) => r.priorityLevel !== "Dangerous" && r.priorityLevel !== "Avoid Market"
+    );
+
+    const topOpportunity = nonDangerous[0] ?? null;
+    const bestBullish =
+      [...nonDangerous]
+        .filter((r) => r.bullishScore > 55)
+        .sort((a, b) => b.cleanSignalScore - a.cleanSignalScore)[0] ?? null;
+    const bestBearish =
+      [...nonDangerous]
+        .filter((r) => r.bearishScore > 55)
+        .sort((a, b) => b.cleanSignalScore - a.cleanSignalScore)[0] ?? null;
+    const cleanest =
+      [...validResults]
+        .filter((r) => r.marketCleanliness === "clean" || r.marketCleanliness === "trending")
+        .sort((a, b) => b.volatilityCompatibility - a.volatilityCompatibility)[0] ?? null;
+    const safest =
+      [...nonDangerous].sort((a, b) => a.riskScore - b.riskScore)[0] ?? null;
+    const mostDangerous =
+      [...validResults].sort((a, b) => b.riskScore - a.riskScore)[0] ?? null;
+
+    res.json({
+      scannedAt: Math.floor(Date.now() / 1000),
+      totalSymbols: validResults.length,
+      eliteCount: validResults.filter((r) => r.priorityLevel === "Elite Opportunity").length,
+      highConfidenceCount: validResults.filter((r) => r.priorityLevel === "High Confidence").length,
+      results: validResults,
+      topOpportunity,
+      bestBullish,
+      bestBearish,
+      cleanest,
+      safest,
+      mostDangerous,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Scanner scan failed");
+    res.status(500).json({ error: "Scanner failed" });
+  }
+});
+
+export default router;
