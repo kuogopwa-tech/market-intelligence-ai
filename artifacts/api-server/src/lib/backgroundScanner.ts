@@ -196,27 +196,30 @@ async function runBackgroundScan(): Promise<void> {
     logger.warn("Background scan skipped — previous scan still running");
     return;
   }
+
+  // Set lock BEFORE any async work. The outer try/finally unconditionally
+  // clears it so a DB hiccup on the initial insert cannot permanently deadlock.
   scanLock = true;
   const startTime = Date.now();
-
-  const [runRow] = await db
-    .insert(scanRunsTable)
-    .values({ triggeredBy: "scheduler" })
-    .returning();
-
-  const scanRunId = runRow.id;
-  state.currentScanRunId = scanRunId;
-
-  const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
-  const skipAnalytics = heapMb > MAX_HEAP_MB;
-  if (skipAnalytics) {
-    logger.warn({ heapMb }, "Heap usage high — skipping analytics refresh this cycle");
-  }
-
+  let scanRunId: number | null = null;
   let succeeded = 0;
   let failed = 0;
 
   try {
+    // Insert scan_run record — inside try so failures are caught and lock released.
+    const [runRow] = await db
+      .insert(scanRunsTable)
+      .values({ triggeredBy: "scheduler" })
+      .returning();
+    scanRunId = runRow.id;
+    state.currentScanRunId = scanRunId;
+
+    const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
+    const skipAnalytics = heapMb > MAX_HEAP_MB;
+    if (skipAnalytics) {
+      logger.warn({ heapMb }, "Heap usage high — skipping analytics refresh this cycle");
+    }
+
     const allMemory = await db
       .select()
       .from(learningMemoryTable)
@@ -255,10 +258,11 @@ async function runBackgroundScan(): Promise<void> {
 
     if (results.length > 0) {
       // Batch-write intelligence snapshots + symbol timeline in one transaction
+      const runIdForInsert = scanRunId; // satisfies strict null checks in closure
       await db.transaction(async (tx) => {
         await tx.insert(intelligenceSnapshotsTable).values(
           results.map((r) => ({
-            scanRunId,
+            scanRunId: runIdForInsert,
             symbol: r.symbol,
             snapshotAt: now,
             hour,
@@ -309,12 +313,13 @@ async function runBackgroundScan(): Promise<void> {
       });
 
       if (!skipAnalytics) {
-        // Refresh behavioral personality snapshot for each successful symbol (non-blocking)
+        const sid = scanRunId;
+        // Refresh behavioral personality from historical intelligence_snapshots (non-blocking)
         void Promise.allSettled(
-          results.map((r) => refreshSymbolPersonality(r, scanRunId))
+          results.map((r) => refreshSymbolPersonality(r.symbol, sid))
         ).then((outcomes) => {
-          const failed = outcomes.filter((o) => o.status === "rejected").length;
-          if (failed > 0) logger.warn({ failed }, "Some personality refreshes failed");
+          const failCount = outcomes.filter((o) => o.status === "rejected").length;
+          if (failCount > 0) logger.warn({ failCount }, "Some personality refreshes failed");
         });
 
         // Run aggregation + evolution detection in background (non-blocking to scan run)
@@ -328,16 +333,18 @@ async function runBackgroundScan(): Promise<void> {
     }
 
     const durationMs = Date.now() - startTime;
-    await db
-      .update(scanRunsTable)
-      .set({
-        completedAt: new Date(),
-        durationMs,
-        symbolsScanned: SUPPORTED_SYMBOLS.length,
-        symbolsSucceeded: succeeded,
-        symbolsFailed: failed,
-      })
-      .where(eq(scanRunsTable.id, scanRunId));
+    if (scanRunId !== null) {
+      await db
+        .update(scanRunsTable)
+        .set({
+          completedAt: new Date(),
+          durationMs,
+          symbolsScanned: SUPPORTED_SYMBOLS.length,
+          symbolsSucceeded: succeeded,
+          symbolsFailed: failed,
+        })
+        .where(eq(scanRunsTable.id, scanRunId));
+    }
 
     state.lastScanAt = Date.now();
     state.lastLatencyMs = durationMs;
@@ -353,19 +360,22 @@ async function runBackgroundScan(): Promise<void> {
     state.lastError = errMsg;
     logger.error({ err, scanRunId }, "Background scan failed");
 
-    await db
-      .update(scanRunsTable)
-      .set({
-        completedAt: new Date(),
-        durationMs: Date.now() - startTime,
-        symbolsScanned: SUPPORTED_SYMBOLS.length,
-        symbolsSucceeded: succeeded,
-        symbolsFailed: SUPPORTED_SYMBOLS.length - succeeded,
-        error: errMsg,
-      })
-      .where(eq(scanRunsTable.id, scanRunId))
-      .catch(() => {});
+    if (scanRunId !== null) {
+      await db
+        .update(scanRunsTable)
+        .set({
+          completedAt: new Date(),
+          durationMs: Date.now() - startTime,
+          symbolsScanned: SUPPORTED_SYMBOLS.length,
+          symbolsSucceeded: succeeded,
+          symbolsFailed: SUPPORTED_SYMBOLS.length - succeeded,
+          error: errMsg,
+        })
+        .where(eq(scanRunsTable.id, scanRunId))
+        .catch(() => {});
+    }
   } finally {
+    // Always release lock — even if the initial scan_run insert failed.
     scanLock = false;
     state.currentScanRunId = null;
   }
