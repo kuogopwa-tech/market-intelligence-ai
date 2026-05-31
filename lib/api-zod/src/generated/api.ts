@@ -601,6 +601,181 @@ export const GetSymbolHeatmapResponse = zod.object({
 
 
 /**
+ * @summary Background scanner status, uptime, and collection metrics
+ */
+export const GetIntelligenceStatusResponse = zod.object({
+  "running": zod.boolean(),
+  "isScanning": zod.boolean(),
+  "lastScanAt": zod.number().nullish(),
+  "nextScanAt": zod.number().nullish(),
+  "totalScans": zod.number(),
+  "lastLatencyMs": zod.number().nullish(),
+  "lastError": zod.string().nullish(),
+  "intervalMs": zod.number(),
+  "uptimeSeconds": zod.number(),
+  "historicalDepthHours": zod.number(),
+  "historicalDepthDays": zod.number(),
+  "symbolsTracked": zod.number(),
+  "totalSymbols": zod.number(),
+  "recentRuns": zod.array(zod.object({
+  "id": zod.number(),
+  "startedAt": zod.number(),
+  "completedAt": zod.number().nullish(),
+  "durationMs": zod.number().nullish(),
+  "symbolsScanned": zod.number(),
+  "symbolsSucceeded": zod.number(),
+  "symbolsFailed": zod.number(),
+  "error": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Recent background-scan snapshots for a symbol (last 200)
+ */
+export const GetIntelligenceSnapshotsParams = zod.object({
+  "symbol": zod.coerce.string()
+})
+
+export const GetIntelligenceSnapshotsResponse = zod.object({
+  "symbol": zod.string(),
+  "snapshots": zod.array(zod.object({
+  "id": zod.number(),
+  "scanRunId": zod.number().nullish(),
+  "snapshotAt": zod.number(),
+  "hour": zod.number(),
+  "dayOfWeek": zod.number(),
+  "cleanSignalScore": zod.number(),
+  "riskScore": zod.number(),
+  "confidence": zod.number(),
+  "marketState": zod.string(),
+  "riskLevel": zod.string(),
+  "priorityLevel": zod.string(),
+  "alertType": zod.string(),
+  "marketCleanliness": zod.string(),
+  "setupRarity": zod.string(),
+  "volatilityCompatibility": zod.number(),
+  "indicatorAlignment": zod.number(),
+  "momentumConfirmation": zod.number(),
+  "bullishScore": zod.number(),
+  "bearishScore": zod.number(),
+  "noTradeZone": zod.boolean(),
+  "patternName": zod.string()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary 24-slot adaptive timing model for a symbol
+ */
+export const GetIntelligenceHourlyParams = zod.object({
+  "symbol": zod.coerce.string()
+})
+
+export const GetIntelligenceHourlyResponse = zod.object({
+  "symbol": zod.string(),
+  "windows": zod.array(zod.object({
+  "hour": zod.number(),
+  "avgQuality": zod.number(),
+  "avgConfidence": zod.number(),
+  "avgRisk": zod.number(),
+  "sampleCount": zod.number(),
+  "eliteCount": zod.number(),
+  "dangerousCount": zod.number(),
+  "label": zod.string()
+})),
+  "bestWindows": zod.array(zod.object({
+  "hour": zod.number(),
+  "avgQuality": zod.number(),
+  "avgConfidence": zod.number(),
+  "avgRisk": zod.number(),
+  "sampleCount": zod.number(),
+  "eliteCount": zod.number(),
+  "dangerousCount": zod.number(),
+  "label": zod.string()
+})),
+  "worstWindows": zod.array(zod.object({
+  "hour": zod.number(),
+  "avgQuality": zod.number(),
+  "avgConfidence": zod.number(),
+  "avgRisk": zod.number(),
+  "sampleCount": zod.number(),
+  "eliteCount": zod.number(),
+  "dangerousCount": zod.number(),
+  "label": zod.string()
+})),
+  "hasData": zod.boolean()
+})
+
+
+/**
+ * @summary Last 30 days of daily summaries for a symbol
+ */
+export const GetIntelligenceDailyParams = zod.object({
+  "symbol": zod.coerce.string()
+})
+
+export const GetIntelligenceDailyResponse = zod.object({
+  "symbol": zod.string(),
+  "dailySummaries": zod.array(zod.object({
+  "date": zod.string(),
+  "avgQuality": zod.number(),
+  "avgConfidence": zod.number(),
+  "avgRisk": zod.number(),
+  "sampleCount": zod.number(),
+  "eliteCount": zod.number(),
+  "dangerousCount": zod.number(),
+  "peakQualityHour": zod.number().nullish(),
+  "worstQualityHour": zod.number().nullish(),
+  "dominantState": zod.string(),
+  "dominantPersonality": zod.string()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Regime-shift evolution events for a symbol (last 50)
+ */
+export const GetIntelligenceEvolutionParams = zod.object({
+  "symbol": zod.coerce.string()
+})
+
+export const GetIntelligenceEvolutionResponse = zod.object({
+  "symbol": zod.string(),
+  "events": zod.array(zod.object({
+  "id": zod.number(),
+  "detectedAt": zod.number(),
+  "type": zod.string(),
+  "severity": zod.string(),
+  "description": zod.string()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Cross-symbol 7-day aggregated leaderboard
+ */
+export const GetIntelligenceAggregatedResponse = zod.object({
+  "leaderboard": zod.array(zod.object({
+  "symbol": zod.string(),
+  "displayName": zod.string(),
+  "avgQuality": zod.number(),
+  "avgConfidence": zod.number(),
+  "avgRisk": zod.number(),
+  "totalSamples": zod.number(),
+  "eliteCount": zod.number(),
+  "dangerousCount": zod.number(),
+  "daysTracked": zod.number()
+})),
+  "since": zod.string(),
+  "generatedAt": zod.number()
+})
+
+
+/**
  * @summary Scan all markets and rank by opportunity quality
  */
 export const getScannerResultsQueryGranularityDefault = 60;

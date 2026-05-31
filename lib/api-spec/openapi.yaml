@@ -25,6 +25,8 @@ tags:
     description: Multi-market opportunity scanner and ranking
   - name: analytics
     description: Behavioral market analytics, symbol profiling, and timing intelligence
+  - name: intelligence
+    description: Autonomous background intelligence collection and aggregated market memory
 
 paths:
   /healthz:
@@ -528,6 +530,108 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SymbolHeatmapResponse"
+
+  /intelligence/status:
+    get:
+      operationId: getIntelligenceStatus
+      tags: [intelligence]
+      summary: Background scanner status, uptime, and collection metrics
+      responses:
+        "200":
+          description: Intelligence system status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceStatus"
+
+  /intelligence/snapshots/{symbol}:
+    get:
+      operationId: getIntelligenceSnapshots
+      tags: [intelligence]
+      summary: Recent background-scan snapshots for a symbol (last 200)
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Intelligence snapshots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceSnapshotsResponse"
+
+  /intelligence/hourly/{symbol}:
+    get:
+      operationId: getIntelligenceHourly
+      tags: [intelligence]
+      summary: 24-slot adaptive timing model for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Hourly timing windows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimingModelResponse"
+
+  /intelligence/daily/{symbol}:
+    get:
+      operationId: getIntelligenceDaily
+      tags: [intelligence]
+      summary: Last 30 days of daily summaries for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Daily summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailySummaryResponse"
+
+  /intelligence/evolution/{symbol}:
+    get:
+      operationId: getIntelligenceEvolution
+      tags: [intelligence]
+      summary: Regime-shift evolution events for a symbol (last 50)
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Evolution events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvolutionResponse"
+
+  /intelligence/aggregated:
+    get:
+      operationId: getIntelligenceAggregated
+      tags: [intelligence]
+      summary: Cross-symbol 7-day aggregated leaderboard
+      responses:
+        "200":
+          description: Aggregated cross-symbol intelligence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AggregatedIntelligenceResponse"
 
   /scanner/scan:
     get:
@@ -1274,3 +1378,265 @@ components:
           type: ["integer", "null"]
         error:
           type: ["string", "null"]
+
+    ScanRunSummary:
+      type: object
+      required: [id, startedAt, symbolsScanned, symbolsSucceeded, symbolsFailed]
+      properties:
+        id:
+          type: integer
+        startedAt:
+          type: integer
+        completedAt:
+          type: ["integer", "null"]
+        durationMs:
+          type: ["integer", "null"]
+        symbolsScanned:
+          type: integer
+        symbolsSucceeded:
+          type: integer
+        symbolsFailed:
+          type: integer
+        error:
+          type: ["string", "null"]
+
+    IntelligenceStatus:
+      type: object
+      required: [running, isScanning, totalScans, intervalMs, uptimeSeconds, historicalDepthHours, historicalDepthDays, symbolsTracked, totalSymbols, recentRuns]
+      properties:
+        running:
+          type: boolean
+        isScanning:
+          type: boolean
+        lastScanAt:
+          type: ["integer", "null"]
+        nextScanAt:
+          type: ["integer", "null"]
+        totalScans:
+          type: integer
+        lastLatencyMs:
+          type: ["integer", "null"]
+        lastError:
+          type: ["string", "null"]
+        intervalMs:
+          type: integer
+        uptimeSeconds:
+          type: integer
+        historicalDepthHours:
+          type: integer
+        historicalDepthDays:
+          type: integer
+        symbolsTracked:
+          type: integer
+        totalSymbols:
+          type: integer
+        recentRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanRunSummary"
+
+    IntelligenceSnapshot:
+      type: object
+      required: [id, snapshotAt, hour, dayOfWeek, cleanSignalScore, riskScore, confidence, marketState, riskLevel, priorityLevel, alertType, marketCleanliness, setupRarity, volatilityCompatibility, indicatorAlignment, momentumConfirmation, bullishScore, bearishScore, noTradeZone, patternName]
+      properties:
+        id:
+          type: integer
+        scanRunId:
+          type: ["integer", "null"]
+        snapshotAt:
+          type: integer
+        hour:
+          type: integer
+        dayOfWeek:
+          type: integer
+        cleanSignalScore:
+          type: integer
+        riskScore:
+          type: integer
+        confidence:
+          type: integer
+        marketState:
+          type: string
+        riskLevel:
+          type: string
+        priorityLevel:
+          type: string
+        alertType:
+          type: string
+        marketCleanliness:
+          type: string
+        setupRarity:
+          type: string
+        volatilityCompatibility:
+          type: integer
+        indicatorAlignment:
+          type: integer
+        momentumConfirmation:
+          type: integer
+        bullishScore:
+          type: integer
+        bearishScore:
+          type: integer
+        noTradeZone:
+          type: boolean
+        patternName:
+          type: string
+
+    IntelligenceSnapshotsResponse:
+      type: object
+      required: [symbol, snapshots, total]
+      properties:
+        symbol:
+          type: string
+        snapshots:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntelligenceSnapshot"
+        total:
+          type: integer
+
+    HourlyWindow:
+      type: object
+      required: [hour, avgQuality, avgConfidence, avgRisk, sampleCount, eliteCount, dangerousCount, label]
+      properties:
+        hour:
+          type: integer
+        avgQuality:
+          type: integer
+        avgConfidence:
+          type: integer
+        avgRisk:
+          type: integer
+        sampleCount:
+          type: integer
+        eliteCount:
+          type: integer
+        dangerousCount:
+          type: integer
+        label:
+          type: string
+
+    TimingModelResponse:
+      type: object
+      required: [symbol, windows, bestWindows, worstWindows, hasData]
+      properties:
+        symbol:
+          type: string
+        windows:
+          type: array
+          items:
+            $ref: "#/components/schemas/HourlyWindow"
+        bestWindows:
+          type: array
+          items:
+            $ref: "#/components/schemas/HourlyWindow"
+        worstWindows:
+          type: array
+          items:
+            $ref: "#/components/schemas/HourlyWindow"
+        hasData:
+          type: boolean
+
+    DailySummaryEntry:
+      type: object
+      required: [date, avgQuality, avgConfidence, avgRisk, sampleCount, eliteCount, dangerousCount, dominantState, dominantPersonality]
+      properties:
+        date:
+          type: string
+        avgQuality:
+          type: integer
+        avgConfidence:
+          type: integer
+        avgRisk:
+          type: integer
+        sampleCount:
+          type: integer
+        eliteCount:
+          type: integer
+        dangerousCount:
+          type: integer
+        peakQualityHour:
+          type: ["integer", "null"]
+        worstQualityHour:
+          type: ["integer", "null"]
+        dominantState:
+          type: string
+        dominantPersonality:
+          type: string
+
+    DailySummaryResponse:
+      type: object
+      required: [symbol, dailySummaries, total]
+      properties:
+        symbol:
+          type: string
+        dailySummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailySummaryEntry"
+        total:
+          type: integer
+
+    EvolutionEvent:
+      type: object
+      required: [id, detectedAt, type, severity, description]
+      properties:
+        id:
+          type: integer
+        detectedAt:
+          type: integer
+        type:
+          type: string
+        severity:
+          type: string
+        description:
+          type: string
+
+    EvolutionResponse:
+      type: object
+      required: [symbol, events, total]
+      properties:
+        symbol:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvolutionEvent"
+        total:
+          type: integer
+
+    AggregatedSymbolEntry:
+      type: object
+      required: [symbol, displayName, avgQuality, avgConfidence, avgRisk, totalSamples, eliteCount, dangerousCount, daysTracked]
+      properties:
+        symbol:
+          type: string
+        displayName:
+          type: string
+        avgQuality:
+          type: integer
+        avgConfidence:
+          type: integer
+        avgRisk:
+          type: integer
+        totalSamples:
+          type: integer
+        eliteCount:
+          type: integer
+        dangerousCount:
+          type: integer
+        daysTracked:
+          type: integer
+
+    AggregatedIntelligenceResponse:
+      type: object
+      required: [leaderboard, since, generatedAt]
+      properties:
+        leaderboard:
+          type: array
+          items:
+            $ref: "#/components/schemas/AggregatedSymbolEntry"
+        since:
+          type: string
+        generatedAt:
+          type: integer

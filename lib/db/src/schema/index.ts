@@ -3,3 +3,4 @@ export * from "./predictions";
 export * from "./aiAnalysis";
 export * from "./memory";
 export * from "./symbolTimeline";
+export * from "./intelligence";

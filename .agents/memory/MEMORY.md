@@ -1,0 +1,1 @@
+- [Orval Zod+TypeParams Collision](orval-zod-type-collision.md) — routes with both path AND query params cause TS2308; remove query params from OpenAPI spec to fix
