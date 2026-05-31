@@ -6,8 +6,14 @@ import {
   getGetSymbolTimelineQueryKey,
   useGetSymbolHeatmap,
   getGetSymbolHeatmapQueryKey,
+  useGetIntelligenceHourly,
+  getGetIntelligenceHourlyQueryKey,
+  useGetIntelligenceEvolution,
+  getGetIntelligenceEvolutionQueryKey,
+  useGetScannerResults,
+  getGetScannerResultsQueryKey,
 } from "@workspace/api-client-react";
-import type { SymbolProfile, TimelineEntry, HeatmapSlot } from "@workspace/api-client-react";
+import type { SymbolProfile, TimelineEntry, HeatmapSlot, HourlyWindow, EvolutionEvent } from "@workspace/api-client-react";
 import {
   BrainCircuit,
   TrendingUp,
@@ -20,6 +26,10 @@ import {
   RefreshCw,
   ChevronRight,
   Info,
+  Cpu,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import {
   AreaChart,
@@ -31,9 +41,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  ReferenceLine,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { useGetScannerResults, getGetScannerResultsQueryKey } from "@workspace/api-client-react";
 
 // ─── Priority colours ─────────────────────────────────────────────────────────
 const PRIORITY_DOT: Record<string, string> = {
@@ -533,7 +543,7 @@ function RhythmChart({ profiles }: { profiles: SymbolProfile[] }) {
 
 export default function Analytics() {
   const [selectedSymbol, setSelectedSymbol] = useState<string>("R_100");
-  const [activeTab, setActiveTab] = useState<"profiles" | "evolution" | "heatmap" | "rhythm">("profiles");
+  const [activeTab, setActiveTab] = useState<"profiles" | "evolution" | "heatmap" | "rhythm" | "intel_timing" | "intel_events">("profiles");
 
   const { data: overview, isLoading: overviewLoading, isFetching, refetch } = useGetAnalyticsOverview({
     query: {
@@ -548,6 +558,22 @@ export default function Analytics() {
       queryKey: getGetSymbolTimelineQueryKey(selectedSymbol),
       enabled: activeTab === "evolution",
       staleTime: 15000,
+    },
+  });
+
+  const { data: intelHourly, isLoading: intelHourlyLoading } = useGetIntelligenceHourly(selectedSymbol, {
+    query: {
+      queryKey: getGetIntelligenceHourlyQueryKey(selectedSymbol),
+      enabled: activeTab === "intel_timing",
+      staleTime: 60000,
+    },
+  });
+
+  const { data: intelEvolution, isLoading: intelEvolutionLoading } = useGetIntelligenceEvolution(selectedSymbol, {
+    query: {
+      queryKey: getGetIntelligenceEvolutionQueryKey(selectedSymbol),
+      enabled: activeTab === "intel_events",
+      staleTime: 60000,
     },
   });
 
@@ -570,6 +596,8 @@ export default function Analytics() {
     { id: "evolution" as const, label: "Opportunity Evolution", icon: Activity },
     { id: "heatmap" as const, label: "Timing Heatmap", icon: Clock },
     { id: "rhythm" as const, label: "Market Rhythm", icon: BarChart3 },
+    { id: "intel_timing" as const, label: "Adaptive Timing", icon: Cpu },
+    { id: "intel_events" as const, label: "Intelligence Events", icon: AlertTriangle },
   ];
 
   return (
@@ -870,6 +898,207 @@ export default function Analytics() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── Tab: Adaptive Timing (Intelligence) ── */}
+          {activeTab === "intel_timing" && (
+            <div className="space-y-4">
+              {/* Symbol selector */}
+              <div className="flex flex-wrap gap-1.5">
+                {overview!.profiles.map((p) => (
+                  <button
+                    key={p.symbol}
+                    onClick={() => setSelectedSymbol(p.symbol)}
+                    className={cn(
+                      "text-xs px-2.5 py-1 rounded-full border transition-all",
+                      selectedSymbol === p.symbol
+                        ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10"
+                        : "border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                    )}
+                  >
+                    {p.symbol}
+                  </button>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Cpu className="w-4 h-4 text-cyan-400" />
+                  <h3 className="text-sm font-semibold text-slate-200">
+                    Adaptive Timing Windows — {selectedSymbol}
+                  </h3>
+                  <span className="text-xs text-slate-600">Historical best/worst UTC hours from background scans</span>
+                </div>
+
+                {intelHourlyLoading ? (
+                  <div className="flex items-center gap-2 text-slate-600 text-sm py-8 justify-center">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading timing model…
+                  </div>
+                ) : !intelHourly?.hasData ? (
+                  <div className="text-center py-8">
+                    <Cpu className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                    <div className="text-slate-500 text-sm">Timing model builds as background scans accumulate.</div>
+                    <div className="text-slate-700 text-xs mt-1">Check back after a few scan cycles (every 5 min).</div>
+                  </div>
+                ) : (
+                  <>
+                    {(intelHourly?.bestWindows ?? []).length > 0 && (
+                      <div className="flex flex-wrap items-center gap-3 text-xs mb-4">
+                        <span className="text-slate-500">Best windows:</span>
+                        {(intelHourly?.bestWindows ?? []).map((w: HourlyWindow) => (
+                          <span key={w.hour} className="px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-300 font-mono">
+                            {w.label} · Q{w.avgQuality}
+                          </span>
+                        ))}
+                        {(intelHourly?.worstWindows ?? []).length > 0 && (
+                          <>
+                            <span className="text-slate-500 ml-2">Riskiest:</span>
+                            {(intelHourly?.worstWindows ?? []).map((w: HourlyWindow) => (
+                              <span key={w.hour} className="px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-300 font-mono">
+                                {w.label}
+                              </span>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={intelHourly?.windows ?? []}
+                          margin={{ top: 4, right: 4, bottom: 16, left: -20 }}
+                        >
+                          <XAxis
+                            dataKey="hour"
+                            tickFormatter={(h: number) => `${h}h`}
+                            tick={{ fontSize: 9, fill: "#475569" }}
+                            interval={3}
+                          />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "#475569" }} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "8px", fontSize: "11px" }}
+                            formatter={(val: number) => [val, "Avg Quality"]}
+                            labelFormatter={(h: number) => `${String(h).padStart(2, "0")}:00 UTC`}
+                          />
+                          <ReferenceLine y={50} stroke="#334155" strokeDasharray="3 3" />
+                          <Bar dataKey="avgQuality" radius={[3, 3, 0, 0]}>
+                            {(intelHourly?.windows ?? []).map((w: HourlyWindow, i: number) => {
+                              const maxQ = Math.max(...(intelHourly?.windows ?? []).map((x) => x.avgQuality), 1);
+                              let fill = "#1e293b";
+                              if (w.sampleCount > 0) {
+                                if (w.dangerousCount > w.eliteCount) fill = "#ef4444";
+                                else {
+                                  const rel = w.avgQuality / maxQ;
+                                  fill = rel >= 0.8 ? "#22c55e" : rel >= 0.55 ? "#3b82f6" : rel >= 0.35 ? "#eab308" : "#475569";
+                                }
+                              }
+                              return <Cell key={i} fill={fill} />;
+                            })}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-slate-600 mt-2">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-500 inline-block" /> High quality</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500 inline-block" /> Moderate</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500 inline-block" /> Dangerous</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-slate-800 inline-block" /> No data</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Tab: Intelligence Events ── */}
+          {activeTab === "intel_events" && (
+            <div className="space-y-4">
+              {/* Symbol selector */}
+              <div className="flex flex-wrap gap-1.5">
+                {overview!.profiles.map((p) => (
+                  <button
+                    key={p.symbol}
+                    onClick={() => setSelectedSymbol(p.symbol)}
+                    className={cn(
+                      "text-xs px-2.5 py-1 rounded-full border transition-all",
+                      selectedSymbol === p.symbol
+                        ? "border-orange-500/50 text-orange-300 bg-orange-500/10"
+                        : "border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                    )}
+                  >
+                    {p.symbol}
+                  </button>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle className="w-4 h-4 text-orange-400" />
+                  <h3 className="text-sm font-semibold text-slate-200">
+                    Intelligence Events — {selectedSymbol}
+                  </h3>
+                  <span className="text-xs text-slate-600">Regime shifts, quality trends, and behavioral changes</span>
+                </div>
+
+                {intelEvolutionLoading ? (
+                  <div className="flex items-center gap-2 text-slate-600 text-sm py-8 justify-center">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading events…
+                  </div>
+                ) : (intelEvolution?.events ?? []).length === 0 ? (
+                  <div className="text-center py-8">
+                    <AlertTriangle className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                    <div className="text-slate-500 text-sm">No regime shifts detected yet.</div>
+                    <div className="text-slate-700 text-xs mt-1">Evolution detection activates after ~48h of background scans.</div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(intelEvolution?.events ?? []).map((event: EvolutionEvent) => {
+                      const isBad = event.severity === "alert";
+                      const isWarn = event.severity === "warning";
+                      return (
+                        <div
+                          key={event.id}
+                          className={cn(
+                            "rounded-lg border px-3 py-2.5 flex items-start gap-2.5",
+                            isBad
+                              ? "border-red-500/30 bg-red-500/5"
+                              : isWarn
+                              ? "border-orange-500/30 bg-orange-500/5"
+                              : "border-blue-500/20 bg-blue-500/5"
+                          )}
+                        >
+                          <div className="shrink-0 mt-0.5">
+                            {isBad ? (
+                              <XCircle className="w-3.5 h-3.5 text-red-400" />
+                            ) : isWarn ? (
+                              <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+                            ) : (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className={cn(
+                                "text-sm font-medium leading-snug",
+                                isBad ? "text-red-300" : isWarn ? "text-orange-300" : "text-blue-300"
+                              )}
+                            >
+                              {event.description}
+                            </div>
+                            <div className="text-xs text-slate-600 mt-0.5">
+                              {new Date(event.detectedAt * 1000).toLocaleString()}
+                            </div>
+                          </div>
+                          <span className="shrink-0 text-xs text-slate-700 font-mono capitalize">
+                            {event.type.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

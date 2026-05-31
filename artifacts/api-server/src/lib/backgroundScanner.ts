@@ -12,6 +12,7 @@ import { mergeSignals, computeSignalQuality } from "./signalEngine";
 import { classifyIndicatorPattern, computePatternStats } from "./patternEngine";
 import { runAggregation } from "./aggregationEngine";
 import { detectEvolution } from "./evolutionEngine";
+import { refreshSymbolPersonality } from "./personalityRefresher";
 import { logger } from "./logger";
 
 const SCAN_INTERVAL_MS = parseInt(
@@ -233,13 +234,16 @@ async function runBackgroundScan(): Promise<void> {
     const hour = now.getUTCHours();
     const dayOfWeek = now.getUTCDay();
 
-    // Scan all symbols with retry (max 2 attempts per symbol)
+    // Scan all symbols with exponential-backoff retry (max 3 attempts per symbol)
     for (const sym of SUPPORTED_SYMBOLS) {
       let result: SymbolScanResult | null = null;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < 3; attempt++) {
         result = await scanSymbol(sym, 60, memoryBySymbol.get(sym.symbol) ?? []);
         if (result !== null) break;
-        if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
+        if (attempt < 2) {
+          const delayMs = 1000 * Math.pow(2, attempt); // 1s, 2s
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
       }
       if (result) {
         results.push(result);
@@ -305,6 +309,14 @@ async function runBackgroundScan(): Promise<void> {
       });
 
       if (!skipAnalytics) {
+        // Refresh behavioral personality snapshot for each successful symbol (non-blocking)
+        void Promise.allSettled(
+          results.map((r) => refreshSymbolPersonality(r, scanRunId))
+        ).then((outcomes) => {
+          const failed = outcomes.filter((o) => o.status === "rejected").length;
+          if (failed > 0) logger.warn({ failed }, "Some personality refreshes failed");
+        });
+
         // Run aggregation + evolution detection in background (non-blocking to scan run)
         void runAggregation(results, now).catch((err) =>
           logger.error({ err }, "Aggregation engine error")
