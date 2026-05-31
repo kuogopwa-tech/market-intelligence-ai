@@ -3,15 +3,10 @@ import {
   hourlySummariesTable,
   learningMemoryTable,
 } from "@workspace/db";
-import { gte, lt, and, eq } from "drizzle-orm";
+import { gte, lt, and, sql } from "drizzle-orm";
 import { logger } from "./logger";
 
 const QUALITY_SHIFT_THRESHOLD = 15;
-const STATE_SHIFT_ENABLED = true;
-
-function dateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 function dominantValue(items: string[]): string {
   if (items.length === 0) return "Unknown";
@@ -20,26 +15,32 @@ function dominantValue(items: string[]): string {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Unknown";
 }
 
+// Build a stable deduplication key for an event. Two events with the same key in the
+// same 24-hour window are considered duplicates and will NOT be re-inserted.
+function eventKey(symbol: string, type: string, windowStart: Date): string {
+  const daySlot = windowStart.toISOString().slice(0, 13); // YYYY-MM-DDTHH — hour-resolution bucket
+  return `${symbol}|${type}|${daySlot}`;
+}
+
 export async function detectEvolution(): Promise<void> {
   const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const twoDaysAgo = new Date(now);
-  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
-  const todayStr = dateStr(now);
-  const yesterdayStr = dateStr(yesterday);
-  const twoDaysAgoStr = dateStr(twoDaysAgo);
+  // True rolling windows — not fixed calendar-day buckets.
+  const recentStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);  // now - 24h
+  const priorStart  = new Date(now.getTime() - 48 * 60 * 60 * 1000);  // now - 48h
 
-  // Load last 24h and prior 24h hourly summaries
+  const recentStartStr = recentStart.toISOString().slice(0, 10);
+  const priorStartStr  = priorStart.toISOString().slice(0, 10);
+  const nowStr         = now.toISOString().slice(0, 10);
+
   const [recentRows, priorRows] = await Promise.all([
     db
       .select()
       .from(hourlySummariesTable)
       .where(
         and(
-          gte(hourlySummariesTable.date, yesterdayStr),
-          lt(hourlySummariesTable.date, todayStr)
+          gte(hourlySummariesTable.date, recentStartStr),
+          lt(hourlySummariesTable.date, nowStr)
         )
       ),
     db
@@ -47,13 +48,40 @@ export async function detectEvolution(): Promise<void> {
       .from(hourlySummariesTable)
       .where(
         and(
-          gte(hourlySummariesTable.date, twoDaysAgoStr),
-          lt(hourlySummariesTable.date, yesterdayStr)
+          gte(hourlySummariesTable.date, priorStartStr),
+          lt(hourlySummariesTable.date, recentStartStr)
         )
       ),
   ]);
 
   if (recentRows.length === 0 || priorRows.length === 0) return;
+
+  // Load recent regime-shift events for deduplication check (last 24h)
+  const existingEvents = await db
+    .select({
+      patternData: learningMemoryTable.patternData,
+      symbol: learningMemoryTable.symbol,
+    })
+    .from(learningMemoryTable)
+    .where(
+      and(
+        gte(learningMemoryTable.createdAt, recentStart),
+        sql`${learningMemoryTable.patternData}->>'type' IS NOT NULL`
+      )
+    );
+
+  const existingKeys = new Set<string>(
+    existingEvents
+      .map((row) => {
+        const pd = row.patternData as Record<string, unknown> | null;
+        if (!pd || typeof pd !== "object") return null;
+        const type = pd["type"] as string | undefined;
+        const windowStartStr = pd["windowStart"] as string | undefined;
+        if (!type || !windowStartStr) return null;
+        return `${row.symbol}|${type}|${windowStartStr.slice(0, 13)}`;
+      })
+      .filter((k): k is string => k !== null)
+  );
 
   // Group by symbol
   const symbols = new Set([
@@ -70,27 +98,29 @@ export async function detectEvolution(): Promise<void> {
 
   for (const symbol of symbols) {
     const recent = recentRows.filter((r) => r.symbol === symbol);
-    const prior = priorRows.filter((r) => r.symbol === symbol);
+    const prior  = priorRows.filter((r) => r.symbol === symbol);
     if (recent.length === 0 || prior.length === 0) continue;
 
-    const recentAvgQ =
-      recent.reduce((s, r) => s + r.avgQuality, 0) / recent.length;
-    const priorAvgQ =
-      prior.reduce((s, r) => s + r.avgQuality, 0) / prior.length;
+    const recentAvgQ = recent.reduce((s, r) => s + r.avgQuality, 0) / recent.length;
+    const priorAvgQ  = prior.reduce((s, r) => s + r.avgQuality, 0) / prior.length;
     const qualityDelta = recentAvgQ - priorAvgQ;
 
     const recentState = dominantValue(recent.map((r) => r.dominantState));
-    const priorState = dominantValue(prior.map((r) => r.dominantState));
+    const priorState  = dominantValue(prior.map((r) => r.dominantState));
 
-    const recentElite = recent.reduce((s, r) => s + r.eliteCount, 0);
-    const priorElite = prior.reduce((s, r) => s + r.eliteCount, 0);
+    const recentElite  = recent.reduce((s, r) => s + r.eliteCount, 0);
+    const priorElite   = prior.reduce((s, r) => s + r.eliteCount, 0);
     const recentDanger = recent.reduce((s, r) => s + r.dangerousCount, 0);
-    const priorDanger = prior.reduce((s, r) => s + r.dangerousCount, 0);
+    const priorDanger  = prior.reduce((s, r) => s + r.dangerousCount, 0);
+
+    function shouldEmit(type: string): boolean {
+      return !existingKeys.has(eventKey(symbol, type, recentStart));
+    }
 
     // Quality regime shift
-    if (Math.abs(qualityDelta) >= QUALITY_SHIFT_THRESHOLD) {
+    if (Math.abs(qualityDelta) >= QUALITY_SHIFT_THRESHOLD && shouldEmit("quality_shift")) {
       const direction = qualityDelta > 0 ? "improved" : "deteriorated";
-      const severity = qualityDelta > 0 ? "info" : "warning";
+      const severity  = qualityDelta > 0 ? "info" : "warning";
       shiftEvents.push({
         symbol,
         type: "quality_shift",
@@ -100,7 +130,7 @@ export async function detectEvolution(): Promise<void> {
     }
 
     // Market state transition
-    if (STATE_SHIFT_ENABLED && recentState !== priorState && recentState !== "Unknown" && priorState !== "Unknown") {
+    if (recentState !== priorState && recentState !== "Unknown" && priorState !== "Unknown" && shouldEmit("state_transition")) {
       shiftEvents.push({
         symbol,
         type: "state_transition",
@@ -110,7 +140,7 @@ export async function detectEvolution(): Promise<void> {
     }
 
     // Elite opportunity surge
-    if (recentElite >= priorElite * 2 && recentElite >= 3) {
+    if (recentElite >= priorElite * 2 && recentElite >= 3 && shouldEmit("elite_surge")) {
       shiftEvents.push({
         symbol,
         type: "elite_surge",
@@ -120,7 +150,7 @@ export async function detectEvolution(): Promise<void> {
     }
 
     // Danger spike
-    if (recentDanger >= priorDanger * 2 && recentDanger >= 3) {
+    if (recentDanger >= priorDanger * 2 && recentDanger >= 3 && shouldEmit("danger_spike")) {
       shiftEvents.push({
         symbol,
         type: "danger_spike",
@@ -132,7 +162,7 @@ export async function detectEvolution(): Promise<void> {
 
   if (shiftEvents.length === 0) return;
 
-  // Write shift events to learning_memory with pattern_type = 'regime_shift'
+  const windowStartIso = recentStart.toISOString();
   try {
     await db.insert(learningMemoryTable).values(
       shiftEvents.map((e) => ({
@@ -142,7 +172,9 @@ export async function detectEvolution(): Promise<void> {
           type: e.type,
           severity: e.severity,
           description: e.description,
-          detectedAt: new Date().toISOString(),
+          detectedAt: now.toISOString(),
+          // Store the window start so dedup key can be reconstructed on next run
+          windowStart: windowStartIso,
         },
         outcome: e.severity === "alert" ? "incorrect" : "correct",
         accuracy: e.severity === "alert" ? 0 : e.severity === "info" ? 75 : 50,
