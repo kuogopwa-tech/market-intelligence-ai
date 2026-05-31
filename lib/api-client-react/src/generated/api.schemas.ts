@@ -544,6 +544,145 @@ export interface AiStatus {
   error?: string | null;
 }
 
+export interface ScanRunSummary {
+  id: number;
+  startedAt: number;
+  /** @nullable */
+  completedAt?: number | null;
+  /** @nullable */
+  durationMs?: number | null;
+  symbolsScanned: number;
+  symbolsSucceeded: number;
+  symbolsFailed: number;
+  /** @nullable */
+  error?: string | null;
+}
+
+export interface IntelligenceStatus {
+  running: boolean;
+  isScanning: boolean;
+  /** @nullable */
+  lastScanAt?: number | null;
+  /** @nullable */
+  nextScanAt?: number | null;
+  totalScans: number;
+  /** @nullable */
+  lastLatencyMs?: number | null;
+  /** @nullable */
+  lastError?: string | null;
+  intervalMs: number;
+  uptimeSeconds: number;
+  historicalDepthHours: number;
+  historicalDepthDays: number;
+  symbolsTracked: number;
+  totalSymbols: number;
+  recentRuns: ScanRunSummary[];
+}
+
+export interface IntelligenceSnapshot {
+  id: number;
+  /** @nullable */
+  scanRunId?: number | null;
+  snapshotAt: number;
+  hour: number;
+  dayOfWeek: number;
+  cleanSignalScore: number;
+  riskScore: number;
+  confidence: number;
+  marketState: string;
+  riskLevel: string;
+  priorityLevel: string;
+  alertType: string;
+  marketCleanliness: string;
+  setupRarity: string;
+  volatilityCompatibility: number;
+  indicatorAlignment: number;
+  momentumConfirmation: number;
+  bullishScore: number;
+  bearishScore: number;
+  noTradeZone: boolean;
+  patternName: string;
+}
+
+export interface IntelligenceSnapshotsResponse {
+  symbol: string;
+  snapshots: IntelligenceSnapshot[];
+  total: number;
+}
+
+export interface HourlyWindow {
+  hour: number;
+  avgQuality: number;
+  avgConfidence: number;
+  avgRisk: number;
+  sampleCount: number;
+  eliteCount: number;
+  dangerousCount: number;
+  label: string;
+}
+
+export interface TimingModelResponse {
+  symbol: string;
+  windows: HourlyWindow[];
+  bestWindows: HourlyWindow[];
+  worstWindows: HourlyWindow[];
+  hasData: boolean;
+}
+
+export interface DailySummaryEntry {
+  date: string;
+  avgQuality: number;
+  avgConfidence: number;
+  avgRisk: number;
+  sampleCount: number;
+  eliteCount: number;
+  dangerousCount: number;
+  /** @nullable */
+  peakQualityHour?: number | null;
+  /** @nullable */
+  worstQualityHour?: number | null;
+  dominantState: string;
+  dominantPersonality: string;
+}
+
+export interface DailySummaryResponse {
+  symbol: string;
+  dailySummaries: DailySummaryEntry[];
+  total: number;
+}
+
+export interface EvolutionEvent {
+  id: number;
+  detectedAt: number;
+  type: string;
+  severity: string;
+  description: string;
+}
+
+export interface EvolutionResponse {
+  symbol: string;
+  events: EvolutionEvent[];
+  total: number;
+}
+
+export interface AggregatedSymbolEntry {
+  symbol: string;
+  displayName: string;
+  avgQuality: number;
+  avgConfidence: number;
+  avgRisk: number;
+  totalSamples: number;
+  eliteCount: number;
+  dangerousCount: number;
+  daysTracked: number;
+}
+
+export interface AggregatedIntelligenceResponse {
+  leaderboard: AggregatedSymbolEntry[];
+  since: string;
+  generatedAt: number;
+}
+
 export type GetCandlesParams = {
 symbol: string;
 granularity?: number;

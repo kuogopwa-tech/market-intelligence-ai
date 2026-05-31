@@ -21,6 +21,7 @@ import type {
 
 import type {
   AccuracyStats,
+  AggregatedIntelligenceResponse,
   AiStatus,
   AnalysisRequest,
   AnalysisResult,
@@ -28,6 +29,8 @@ import type {
   AutoPredictRequest,
   AutoPredictionResult,
   Candle,
+  DailySummaryResponse,
+  EvolutionResponse,
   GetAnalysisHistoryParams,
   GetCandlesParams,
   GetLatestAnalysisParams,
@@ -44,6 +47,8 @@ import type {
   GetSymbolIndicatorsParams,
   HealthStatus,
   IndicatorSet,
+  IntelligenceSnapshotsResponse,
+  IntelligenceStatus,
   LessonsSummary,
   MarketSummary,
   MarketSymbol,
@@ -58,7 +63,8 @@ import type {
   SignalQualityResult,
   SymbolHeatmapResponse,
   SymbolTimelineResponse,
-  Tick
+  Tick,
+  TimingModelResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1977,6 +1983,468 @@ export function useGetSymbolHeatmap<TData = Awaited<ReturnType<typeof getSymbolH
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSymbolHeatmapQueryOptions(symbol,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetIntelligenceStatusUrl = () => {
+
+
+
+
+  return `/api/intelligence/status`
+}
+
+/**
+ * @summary Background scanner status, uptime, and collection metrics
+ */
+export const getIntelligenceStatus = async ( options?: RequestInit): Promise<IntelligenceStatus> => {
+
+  return customFetch<IntelligenceStatus>(getGetIntelligenceStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIntelligenceStatusQueryKey = () => {
+    return [
+    `/api/intelligence/status`
+    ] as const;
+    }
+
+
+export const getGetIntelligenceStatusQueryOptions = <TData = Awaited<ReturnType<typeof getIntelligenceStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIntelligenceStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntelligenceStatus>>> = ({ signal }) => getIntelligenceStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetIntelligenceStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getIntelligenceStatus>>>
+export type GetIntelligenceStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Background scanner status, uptime, and collection metrics
+ */
+
+export function useGetIntelligenceStatus<TData = Awaited<ReturnType<typeof getIntelligenceStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetIntelligenceStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetIntelligenceSnapshotsUrl = (symbol: string,) => {
+
+
+
+
+  return `/api/intelligence/snapshots/${symbol}`
+}
+
+/**
+ * @summary Recent background-scan snapshots for a symbol (last 200)
+ */
+export const getIntelligenceSnapshots = async (symbol: string, options?: RequestInit): Promise<IntelligenceSnapshotsResponse> => {
+
+  return customFetch<IntelligenceSnapshotsResponse>(getGetIntelligenceSnapshotsUrl(symbol),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIntelligenceSnapshotsQueryKey = (symbol: string,) => {
+    return [
+    `/api/intelligence/snapshots/${symbol}`
+    ] as const;
+    }
+
+
+export const getGetIntelligenceSnapshotsQueryOptions = <TData = Awaited<ReturnType<typeof getIntelligenceSnapshots>>, TError = ErrorType<unknown>>(symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIntelligenceSnapshotsQueryKey(symbol);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntelligenceSnapshots>>> = ({ signal }) => getIntelligenceSnapshots(symbol, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(symbol), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceSnapshots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetIntelligenceSnapshotsQueryResult = NonNullable<Awaited<ReturnType<typeof getIntelligenceSnapshots>>>
+export type GetIntelligenceSnapshotsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Recent background-scan snapshots for a symbol (last 200)
+ */
+
+export function useGetIntelligenceSnapshots<TData = Awaited<ReturnType<typeof getIntelligenceSnapshots>>, TError = ErrorType<unknown>>(
+ symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetIntelligenceSnapshotsQueryOptions(symbol,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetIntelligenceHourlyUrl = (symbol: string,) => {
+
+
+
+
+  return `/api/intelligence/hourly/${symbol}`
+}
+
+/**
+ * @summary 24-slot adaptive timing model for a symbol
+ */
+export const getIntelligenceHourly = async (symbol: string, options?: RequestInit): Promise<TimingModelResponse> => {
+
+  return customFetch<TimingModelResponse>(getGetIntelligenceHourlyUrl(symbol),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIntelligenceHourlyQueryKey = (symbol: string,) => {
+    return [
+    `/api/intelligence/hourly/${symbol}`
+    ] as const;
+    }
+
+
+export const getGetIntelligenceHourlyQueryOptions = <TData = Awaited<ReturnType<typeof getIntelligenceHourly>>, TError = ErrorType<unknown>>(symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceHourly>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIntelligenceHourlyQueryKey(symbol);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntelligenceHourly>>> = ({ signal }) => getIntelligenceHourly(symbol, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(symbol), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceHourly>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetIntelligenceHourlyQueryResult = NonNullable<Awaited<ReturnType<typeof getIntelligenceHourly>>>
+export type GetIntelligenceHourlyQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary 24-slot adaptive timing model for a symbol
+ */
+
+export function useGetIntelligenceHourly<TData = Awaited<ReturnType<typeof getIntelligenceHourly>>, TError = ErrorType<unknown>>(
+ symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceHourly>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetIntelligenceHourlyQueryOptions(symbol,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetIntelligenceDailyUrl = (symbol: string,) => {
+
+
+
+
+  return `/api/intelligence/daily/${symbol}`
+}
+
+/**
+ * @summary Last 30 days of daily summaries for a symbol
+ */
+export const getIntelligenceDaily = async (symbol: string, options?: RequestInit): Promise<DailySummaryResponse> => {
+
+  return customFetch<DailySummaryResponse>(getGetIntelligenceDailyUrl(symbol),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIntelligenceDailyQueryKey = (symbol: string,) => {
+    return [
+    `/api/intelligence/daily/${symbol}`
+    ] as const;
+    }
+
+
+export const getGetIntelligenceDailyQueryOptions = <TData = Awaited<ReturnType<typeof getIntelligenceDaily>>, TError = ErrorType<unknown>>(symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceDaily>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIntelligenceDailyQueryKey(symbol);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntelligenceDaily>>> = ({ signal }) => getIntelligenceDaily(symbol, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(symbol), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceDaily>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetIntelligenceDailyQueryResult = NonNullable<Awaited<ReturnType<typeof getIntelligenceDaily>>>
+export type GetIntelligenceDailyQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Last 30 days of daily summaries for a symbol
+ */
+
+export function useGetIntelligenceDaily<TData = Awaited<ReturnType<typeof getIntelligenceDaily>>, TError = ErrorType<unknown>>(
+ symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceDaily>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetIntelligenceDailyQueryOptions(symbol,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetIntelligenceEvolutionUrl = (symbol: string,) => {
+
+
+
+
+  return `/api/intelligence/evolution/${symbol}`
+}
+
+/**
+ * @summary Regime-shift evolution events for a symbol (last 50)
+ */
+export const getIntelligenceEvolution = async (symbol: string, options?: RequestInit): Promise<EvolutionResponse> => {
+
+  return customFetch<EvolutionResponse>(getGetIntelligenceEvolutionUrl(symbol),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIntelligenceEvolutionQueryKey = (symbol: string,) => {
+    return [
+    `/api/intelligence/evolution/${symbol}`
+    ] as const;
+    }
+
+
+export const getGetIntelligenceEvolutionQueryOptions = <TData = Awaited<ReturnType<typeof getIntelligenceEvolution>>, TError = ErrorType<unknown>>(symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceEvolution>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIntelligenceEvolutionQueryKey(symbol);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntelligenceEvolution>>> = ({ signal }) => getIntelligenceEvolution(symbol, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(symbol), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceEvolution>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetIntelligenceEvolutionQueryResult = NonNullable<Awaited<ReturnType<typeof getIntelligenceEvolution>>>
+export type GetIntelligenceEvolutionQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Regime-shift evolution events for a symbol (last 50)
+ */
+
+export function useGetIntelligenceEvolution<TData = Awaited<ReturnType<typeof getIntelligenceEvolution>>, TError = ErrorType<unknown>>(
+ symbol: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceEvolution>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetIntelligenceEvolutionQueryOptions(symbol,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetIntelligenceAggregatedUrl = () => {
+
+
+
+
+  return `/api/intelligence/aggregated`
+}
+
+/**
+ * @summary Cross-symbol 7-day aggregated leaderboard
+ */
+export const getIntelligenceAggregated = async ( options?: RequestInit): Promise<AggregatedIntelligenceResponse> => {
+
+  return customFetch<AggregatedIntelligenceResponse>(getGetIntelligenceAggregatedUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIntelligenceAggregatedQueryKey = () => {
+    return [
+    `/api/intelligence/aggregated`
+    ] as const;
+    }
+
+
+export const getGetIntelligenceAggregatedQueryOptions = <TData = Awaited<ReturnType<typeof getIntelligenceAggregated>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceAggregated>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIntelligenceAggregatedQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntelligenceAggregated>>> = ({ signal }) => getIntelligenceAggregated({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceAggregated>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetIntelligenceAggregatedQueryResult = NonNullable<Awaited<ReturnType<typeof getIntelligenceAggregated>>>
+export type GetIntelligenceAggregatedQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Cross-symbol 7-day aggregated leaderboard
+ */
+
+export function useGetIntelligenceAggregated<TData = Awaited<ReturnType<typeof getIntelligenceAggregated>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntelligenceAggregated>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetIntelligenceAggregatedQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

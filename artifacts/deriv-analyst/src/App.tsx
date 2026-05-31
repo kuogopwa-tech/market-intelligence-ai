@@ -13,6 +13,7 @@ import Analysis from "@/pages/analysis";
 import Predictions from "@/pages/predictions";
 import Memory from "@/pages/memory";
 import Settings from "@/pages/settings";
+import Intelligence from "@/pages/intelligence";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/scanner" component={Scanner} />
+        <Route path="/intelligence" component={Intelligence} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/indicators" component={Indicators} />
         <Route path="/analysis" component={Analysis} />
