@@ -1,0 +1,230 @@
+IMPORTANT:
+Build an Autonomous Background Intelligence Collection System integrated into the existing scanner, analytics engine, memory architecture, and behavioral learning system.
+
+The goal is to continuously collect high-quality market intelligence automatically over long periods without requiring manual scans.
+
+==================================================
+1. BACKGROUND SCANNER SERVICE
+==================================================
+
+Create a persistent scheduled scanning service.
+
+Requirements:
+- automatic scans every configurable interval
+- default: every 5 minutes
+- optional fast mode for shorter intervals
+- fully autonomous operation
+- non-blocking architecture
+- fault-tolerant execution
+
+The service should automatically:
+- scan all supported symbols
+- calculate signal quality
+- update behavioral analytics
+- record timeline snapshots
+- update opportunity rankings
+- refresh pattern memory
+
+==================================================
+2. LONG-TERM MARKET MEMORY
+==================================================
+
+Continuously accumulate historical intelligence.
+
+Store:
+- signal quality history
+- confidence history
+- market state transitions
+- volatility cycles
+- opportunity rankings
+- alert frequencies
+- setup rarity evolution
+- timing patterns
+- behavioral rhythm changes
+
+The system should become smarter over time.
+
+==================================================
+3. AUTOMATED BEHAVIORAL LEARNING
+==================================================
+
+Periodically analyze collected history and refine:
+- symbol personalities
+- timing probabilities
+- setup reliability
+- market rhythm scores
+- volatility expectations
+- confidence weighting
+- danger condition frequency
+
+Generate adaptive learning updates automatically.
+
+==================================================
+4. INTELLIGENCE AGGREGATION ENGINE
+==================================================
+
+Create aggregated analytics:
+- hourly summaries
+- daily summaries
+- weekly behavior trends
+- recurring setup windows
+- long-term volatility behavior
+- dominant market states
+- setup persistence statistics
+
+==================================================
+5. BACKGROUND TASK MANAGEMENT
+==================================================
+
+Implement:
+- scheduler service
+- task lifecycle management
+- graceful restart recovery
+- retry logic
+- scan deduplication
+- concurrency protection
+- execution monitoring
+
+Display:
+- background scanner status
+- last scan time
+- next scheduled scan
+- total scans collected
+- scanner uptime
+- processing latency
+
+==================================================
+6. DATA RETENTION & STORAGE OPTIMIZATION
+==================================================
+
+Optimize long-term storage carefully.
+
+Implement:
+- historical aggregation
+- old snapshot compression
+- rolling retention policies
+- lightweight storage structures
+- efficient indexing
+- batched writes
+- archival strategies
+
+The system should scale safely over long periods.
+
+==================================================
+7. MARKET EVOLUTION TRACKING
+==================================================
+
+Detect how markets evolve over days/weeks.
+
+Track:
+- changing symbol behavior
+- volatility regime shifts
+- rhythm changes
+- trend reliability evolution
+- setup quality evolution
+- session behavior changes
+
+Generate:
+- evolution reports
+- behavior change alerts
+- rhythm shift detection
+
+==================================================
+8. ADAPTIVE OPPORTUNITY TIMING
+==================================================
+
+Use accumulated history to improve:
+- best trading windows
+- dangerous time detection
+- volatility timing forecasts
+- setup expectancy scoring
+- session reliability weighting
+
+Example:
+
+Volatility 75 currently entering historically favorable bearish timing window with elevated probability score.
+
+==================================================
+9. PERFORMANCE & RESOURCE OPTIMIZATION
+==================================================
+
+The background engine must remain lightweight.
+
+Requirements:
+- low CPU usage
+- low RAM usage
+- throttled analytics
+- incremental updates
+- asynchronous processing
+- batched DB operations
+- reusable market caches
+- websocket efficiency
+
+The platform must remain responsive while:
+- scanning continuously
+- updating analytics
+- running AI reasoning
+- serving frontend requests
+
+==================================================
+10. SAFETY & STABILITY
+==================================================
+
+Protect against:
+- runaway memory growth
+- duplicate scans
+- websocket overload
+- stale market data
+- overlapping jobs
+- DB write flooding
+- scheduler drift
+
+Implement robust monitoring and safeguards.
+
+==================================================
+11. ADVANCED DASHBOARD FEATURES
+==================================================
+
+Add:
+- Background Intelligence Status panel
+- Scanner Health monitor
+- Collection Progress metrics
+- Historical Depth counter
+- Market Memory Growth charts
+- Intelligence Age indicators
+- Data Freshness status
+
+==================================================
+12. IMPORTANT SYSTEM EVOLUTION
+==================================================
+
+The platform should now evolve from:
+"reacting to current conditions"
+
+into:
+"building long-term behavioral market intelligence."
+
+The system should continuously:
+- observe markets
+- learn recurring behavior
+- refine probabilities
+- improve timing intelligence
+- detect evolving market personalities
+
+without manual intervention.
+
+==================================================
+13. FINAL GOAL
+==================================================
+
+Transform the platform into:
+
+an autonomous AI market intelligence infrastructure
+
+capable of:
+- continuous market observation
+- long-term behavioral learning
+- adaptive timing analytics
+- evolving probability models
+- persistent opportunity intelligence
+- historical market memory accumulation.
