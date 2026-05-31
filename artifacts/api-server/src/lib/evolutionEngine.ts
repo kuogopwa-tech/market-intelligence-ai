@@ -1,12 +1,13 @@
 import { db } from "@workspace/db";
 import {
-  hourlySummariesTable,
+  intelligenceSnapshotsTable,
   learningMemoryTable,
 } from "@workspace/db";
-import { gte, lt, and, sql } from "drizzle-orm";
+import { gte, lt, and, sql, eq } from "drizzle-orm";
 import { logger } from "./logger";
 
-const QUALITY_SHIFT_THRESHOLD = 15;
+const QUALITY_SHIFT_THRESHOLD     = 15;  // points
+const VOLATILITY_SHIFT_THRESHOLD  = 20;  // points on volatilityCompatibility scale
 
 function dominantValue(items: string[]): string {
   if (items.length === 0) return "Unknown";
@@ -15,48 +16,64 @@ function dominantValue(items: string[]): string {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Unknown";
 }
 
-// Build a stable deduplication key for an event. Two events with the same key in the
-// same 24-hour window are considered duplicates and will NOT be re-inserted.
+// Dedup key — an event with the same symbol + type within the same 1-hour bucket
+// is considered a duplicate and will NOT be re-inserted.
 function eventKey(symbol: string, type: string, windowStart: Date): string {
-  const daySlot = windowStart.toISOString().slice(0, 13); // YYYY-MM-DDTHH — hour-resolution bucket
-  return `${symbol}|${type}|${daySlot}`;
+  const hourBucket = windowStart.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+  return `${symbol}|${type}|${hourBucket}`;
 }
 
 export async function detectEvolution(): Promise<void> {
   const now = new Date();
 
-  // True rolling windows — not fixed calendar-day buckets.
-  const recentStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);  // now - 24h
-  const priorStart  = new Date(now.getTime() - 48 * 60 * 60 * 1000);  // now - 48h
+  // True rolling timestamp windows — no date-string bucket rounding.
+  const recentStart = new Date(now.getTime() - 24 * 60 * 60 * 1000); // now - 24h
+  const priorStart  = new Date(now.getTime() - 48 * 60 * 60 * 1000); // now - 48h
 
-  const recentStartStr = recentStart.toISOString().slice(0, 10);
-  const priorStartStr  = priorStart.toISOString().slice(0, 10);
-  const nowStr         = now.toISOString().slice(0, 10);
-
+  // Load intelligence snapshots directly (timestamp precision, not hourly summaries)
   const [recentRows, priorRows] = await Promise.all([
     db
-      .select()
-      .from(hourlySummariesTable)
+      .select({
+        symbol: intelligenceSnapshotsTable.symbol,
+        cleanSignalScore: intelligenceSnapshotsTable.cleanSignalScore,
+        riskScore: intelligenceSnapshotsTable.riskScore,
+        marketState: intelligenceSnapshotsTable.marketState,
+        volatilityCompatibility: intelligenceSnapshotsTable.volatilityCompatibility,
+        priorityLevel: intelligenceSnapshotsTable.priorityLevel,
+        noTradeZone: intelligenceSnapshotsTable.noTradeZone,
+        alertType: intelligenceSnapshotsTable.alertType,
+      })
+      .from(intelligenceSnapshotsTable)
       .where(
         and(
-          gte(hourlySummariesTable.date, recentStartStr),
-          lt(hourlySummariesTable.date, nowStr)
+          gte(intelligenceSnapshotsTable.snapshotAt, recentStart),
+          lt(intelligenceSnapshotsTable.snapshotAt, now)
         )
       ),
     db
-      .select()
-      .from(hourlySummariesTable)
+      .select({
+        symbol: intelligenceSnapshotsTable.symbol,
+        cleanSignalScore: intelligenceSnapshotsTable.cleanSignalScore,
+        riskScore: intelligenceSnapshotsTable.riskScore,
+        marketState: intelligenceSnapshotsTable.marketState,
+        volatilityCompatibility: intelligenceSnapshotsTable.volatilityCompatibility,
+        priorityLevel: intelligenceSnapshotsTable.priorityLevel,
+        noTradeZone: intelligenceSnapshotsTable.noTradeZone,
+        alertType: intelligenceSnapshotsTable.alertType,
+      })
+      .from(intelligenceSnapshotsTable)
       .where(
         and(
-          gte(hourlySummariesTable.date, priorStartStr),
-          lt(hourlySummariesTable.date, recentStartStr)
+          gte(intelligenceSnapshotsTable.snapshotAt, priorStart),
+          lt(intelligenceSnapshotsTable.snapshotAt, recentStart)
         )
       ),
   ]);
 
   if (recentRows.length === 0 || priorRows.length === 0) return;
 
-  // Load recent regime-shift events for deduplication check (last 24h)
+  // Load existing regime-shift events from last 25h for deduplication
+  const dedupWindow = new Date(now.getTime() - 25 * 60 * 60 * 1000);
   const existingEvents = await db
     .select({
       patternData: learningMemoryTable.patternData,
@@ -65,7 +82,8 @@ export async function detectEvolution(): Promise<void> {
     .from(learningMemoryTable)
     .where(
       and(
-        gte(learningMemoryTable.createdAt, recentStart),
+        gte(learningMemoryTable.createdAt, dedupWindow),
+        eq(learningMemoryTable.patternType, "regime_shift"),
         sql`${learningMemoryTable.patternData}->>'type' IS NOT NULL`
       )
     );
@@ -101,35 +119,51 @@ export async function detectEvolution(): Promise<void> {
     const prior  = priorRows.filter((r) => r.symbol === symbol);
     if (recent.length === 0 || prior.length === 0) continue;
 
-    const recentAvgQ = recent.reduce((s, r) => s + r.avgQuality, 0) / recent.length;
-    const priorAvgQ  = prior.reduce((s, r) => s + r.avgQuality, 0) / prior.length;
-    const qualityDelta = recentAvgQ - priorAvgQ;
+    const recentAvgQ    = recent.reduce((s, r) => s + r.cleanSignalScore, 0) / recent.length;
+    const priorAvgQ     = prior.reduce((s, r) => s + r.cleanSignalScore, 0) / prior.length;
+    const qualityDelta  = recentAvgQ - priorAvgQ;
 
-    const recentState = dominantValue(recent.map((r) => r.dominantState));
-    const priorState  = dominantValue(prior.map((r) => r.dominantState));
+    const recentAvgVol  = recent.reduce((s, r) => s + r.volatilityCompatibility, 0) / recent.length;
+    const priorAvgVol   = prior.reduce((s, r) => s + r.volatilityCompatibility, 0) / prior.length;
+    const volDelta      = recentAvgVol - priorAvgVol;
 
-    const recentElite  = recent.reduce((s, r) => s + r.eliteCount, 0);
-    const priorElite   = prior.reduce((s, r) => s + r.eliteCount, 0);
-    const recentDanger = recent.reduce((s, r) => s + r.dangerousCount, 0);
-    const priorDanger  = prior.reduce((s, r) => s + r.dangerousCount, 0);
+    const recentState   = dominantValue(recent.map((r) => r.marketState));
+    const priorState    = dominantValue(prior.map((r) => r.marketState));
+
+    const recentElite   = recent.filter((r) => r.priorityLevel === "Elite Opportunity" || r.priorityLevel === "High Confidence").length;
+    const priorElite    = prior.filter((r) => r.priorityLevel === "Elite Opportunity" || r.priorityLevel === "High Confidence").length;
+    const recentDanger  = recent.filter((r) => r.priorityLevel === "Dangerous" || r.priorityLevel === "Avoid Market").length;
+    const priorDanger   = prior.filter((r) => r.priorityLevel === "Dangerous" || r.priorityLevel === "Avoid Market").length;
 
     function shouldEmit(type: string): boolean {
       return !existingKeys.has(eventKey(symbol, type, recentStart));
     }
 
-    // Quality regime shift
+    // ── Quality regime shift ────────────────────────────────────────────────
     if (Math.abs(qualityDelta) >= QUALITY_SHIFT_THRESHOLD && shouldEmit("quality_shift")) {
       const direction = qualityDelta > 0 ? "improved" : "deteriorated";
       const severity  = qualityDelta > 0 ? "info" : "warning";
       shiftEvents.push({
         symbol,
         type: "quality_shift",
-        description: `Signal quality ${direction} by ${Math.abs(Math.round(qualityDelta))} points (${Math.round(priorAvgQ)} → ${Math.round(recentAvgQ)})`,
+        description: `Signal quality ${direction} by ${Math.abs(Math.round(qualityDelta))} pts (${Math.round(priorAvgQ)} → ${Math.round(recentAvgQ)}) over 24h rolling window`,
         severity,
       });
     }
 
-    // Market state transition
+    // ── Volatility compatibility shift (new) ───────────────────────────────
+    if (Math.abs(volDelta) >= VOLATILITY_SHIFT_THRESHOLD && shouldEmit("volatility_shift")) {
+      const direction = volDelta > 0 ? "improved" : "worsened";
+      const severity  = volDelta < 0 ? "warning" : "info";
+      shiftEvents.push({
+        symbol,
+        type: "volatility_shift",
+        description: `Volatility compatibility ${direction} by ${Math.abs(Math.round(volDelta))} pts (${Math.round(priorAvgVol)} → ${Math.round(recentAvgVol)}) — ${volDelta < 0 ? "market conditions less favorable" : "market settling, better timing available"}`,
+        severity,
+      });
+    }
+
+    // ── Market state transition ────────────────────────────────────────────
     if (recentState !== priorState && recentState !== "Unknown" && priorState !== "Unknown" && shouldEmit("state_transition")) {
       shiftEvents.push({
         symbol,
@@ -139,22 +173,22 @@ export async function detectEvolution(): Promise<void> {
       });
     }
 
-    // Elite opportunity surge
+    // ── Elite opportunity surge ────────────────────────────────────────────
     if (recentElite >= priorElite * 2 && recentElite >= 3 && shouldEmit("elite_surge")) {
       shiftEvents.push({
         symbol,
         type: "elite_surge",
-        description: `Elite opportunity frequency doubled (${priorElite} → ${recentElite} in 24h)`,
+        description: `Elite opportunity frequency doubled (${priorElite} → ${recentElite} in 24h window)`,
         severity: "info",
       });
     }
 
-    // Danger spike
+    // ── Danger spike ───────────────────────────────────────────────────────
     if (recentDanger >= priorDanger * 2 && recentDanger >= 3 && shouldEmit("danger_spike")) {
       shiftEvents.push({
         symbol,
         type: "danger_spike",
-        description: `Dangerous condition frequency doubled (${priorDanger} → ${recentDanger} in 24h) — caution advised`,
+        description: `Dangerous condition frequency doubled (${priorDanger} → ${recentDanger} in 24h window) — caution advised`,
         severity: "alert",
       });
     }
@@ -173,8 +207,7 @@ export async function detectEvolution(): Promise<void> {
           severity: e.severity,
           description: e.description,
           detectedAt: now.toISOString(),
-          // Store the window start so dedup key can be reconstructed on next run
-          windowStart: windowStartIso,
+          windowStart: windowStartIso, // stored for dedup key reconstruction
         },
         outcome: e.severity === "alert" ? "incorrect" : "correct",
         accuracy: e.severity === "alert" ? 0 : e.severity === "info" ? 75 : 50,

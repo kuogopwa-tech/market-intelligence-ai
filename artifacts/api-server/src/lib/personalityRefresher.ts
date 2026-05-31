@@ -1,14 +1,17 @@
 /**
  * personalityRefresher.ts
  *
- * Derives and persists a behavioral personality label for a symbol based on its
- * most recent scan result. Called once per symbol at the end of every background
- * scan run. Stored in learning_memory as patternType = 'personality_snapshot' so
- * the AI service and analytics query can reference persisted classifications.
+ * Derives and persists a behavioral personality label for a symbol by aggregating
+ * the last 7 days of intelligence_snapshots — NOT just the latest scan result.
+ * This means the personality classification improves over time as more scans
+ * accumulate. Called once per symbol at the end of every background scan run.
+ *
+ * Stored in learning_memory as patternType = 'personality_snapshot' so the AI
+ * service and analytics query can reference persisted classifications.
  */
 import { db } from "@workspace/db";
-import { learningMemoryTable } from "@workspace/db";
-import type { SymbolScanResult } from "./backgroundScanner";
+import { learningMemoryTable, intelligenceSnapshotsTable } from "@workspace/db";
+import { gte, eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 
 type PersonalityLabel =
@@ -20,42 +23,99 @@ type PersonalityLabel =
   | "Frequently Volatile"
   | "Mixed Behavior";
 
-function derivePersonality(result: SymbolScanResult): PersonalityLabel {
-  const { marketState, alertType, riskScore, cleanSignalScore, marketCleanliness, noTradeZone } = result;
+function dominantValue(items: string[]): string {
+  if (items.length === 0) return "Unknown";
+  const counts = new Map<string, number>();
+  for (const item of items) counts.set(item, (counts.get(item) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Unknown";
+}
 
-  if (marketState === "Spike Risk" || alertType === "Spike Detected") return "Spike-Prone";
-  if (noTradeZone && riskScore >= 70) return "Frequently Volatile";
-  if (marketCleanliness === "Clean" && cleanSignalScore >= 70) return "Clean Mover";
-  if (marketState === "Bullish" || marketState === "Bearish") return "Trend Follower";
-  if (marketState === "Reversal Likely") return "Reversal Heavy";
-  if (marketState === "Ranging" || (cleanSignalScore < 50 && riskScore < 40)) return "Range-Bound";
+function derivePersonalityFromHistory(rows: {
+  marketState: string;
+  alertType: string;
+  riskScore: number;
+  cleanSignalScore: number;
+  marketCleanliness: string;
+  noTradeZone: boolean;
+  priorityLevel: string;
+}[]): PersonalityLabel {
+  if (rows.length === 0) return "Mixed Behavior";
+
+  const total = rows.length;
+  const spikeCount       = rows.filter((r) => r.marketState === "Spike Risk" || r.alertType === "Spike Detected").length;
+  const cleanCount       = rows.filter((r) => r.marketCleanliness === "Clean" && r.cleanSignalScore >= 65).length;
+  const highRiskCount    = rows.filter((r) => r.noTradeZone && r.riskScore >= 70).length;
+  const trendCount       = rows.filter((r) => r.marketState === "Bullish" || r.marketState === "Bearish").length;
+  const reversalCount    = rows.filter((r) => r.marketState === "Reversal Likely").length;
+  const rangeBoundCount  = rows.filter((r) => r.marketState === "Ranging").length;
+  const eliteCount       = rows.filter((r) => r.priorityLevel === "Elite Opportunity" || r.priorityLevel === "High Confidence").length;
+
+  const spikePct       = spikeCount / total;
+  const cleanPct       = cleanCount / total;
+  const highRiskPct    = highRiskCount / total;
+  const trendPct       = trendCount / total;
+  const reversalPct    = reversalCount / total;
+  const rangePct       = rangeBoundCount / total;
+
+  // Priority: most extreme trait wins
+  if (spikePct >= 0.40)                               return "Spike-Prone";
+  if (highRiskPct >= 0.45)                            return "Frequently Volatile";
+  if (cleanPct >= 0.35 && eliteCount / total >= 0.20) return "Clean Mover";
+  if (trendPct >= 0.45)                               return "Trend Follower";
+  if (reversalPct >= 0.35)                            return "Reversal Heavy";
+  if (rangePct >= 0.40)                               return "Range-Bound";
   return "Mixed Behavior";
 }
 
 /**
- * Called for each symbol at the end of a scan run.
- * Inserts a lightweight personality snapshot into learning_memory.
- * Does NOT upsert — history accumulates intentionally for trend analysis.
+ * Aggregates the last 7 days of intelligence_snapshots for `symbol`, derives
+ * a stable personality label, and persists it to learning_memory.
+ * History accumulates intentionally — does NOT upsert.
  */
 export async function refreshSymbolPersonality(
-  result: SymbolScanResult,
-  scanRunId: number
+  symbol: string,
+  scanRunId: number | null
 ): Promise<void> {
-  const personality = derivePersonality(result);
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
   try {
+    const rows = await db
+      .select({
+        marketState: intelligenceSnapshotsTable.marketState,
+        alertType: intelligenceSnapshotsTable.alertType,
+        riskScore: intelligenceSnapshotsTable.riskScore,
+        cleanSignalScore: intelligenceSnapshotsTable.cleanSignalScore,
+        marketCleanliness: intelligenceSnapshotsTable.marketCleanliness,
+        noTradeZone: intelligenceSnapshotsTable.noTradeZone,
+        priorityLevel: intelligenceSnapshotsTable.priorityLevel,
+      })
+      .from(intelligenceSnapshotsTable)
+      .where(
+        and(
+          eq(intelligenceSnapshotsTable.symbol, symbol),
+          gte(intelligenceSnapshotsTable.snapshotAt, sevenDaysAgo)
+        )
+      );
+
+    if (rows.length === 0) return; // not enough history yet
+
+    const personality = derivePersonalityFromHistory(rows);
+    const dominantState = dominantValue(rows.map((r) => r.marketState));
+    const avgQuality = Math.round(rows.reduce((s, r) => s + r.cleanSignalScore, 0) / rows.length);
+    const avgRisk    = Math.round(rows.reduce((s, r) => s + r.riskScore, 0) / rows.length);
+
     await db.insert(learningMemoryTable).values({
-      symbol: result.symbol,
+      symbol,
       patternType: "personality_snapshot",
       patternData: {
         personality,
         scanRunId,
-        marketState: result.marketState,
-        cleanSignalScore: Math.round(result.cleanSignalScore),
-        riskScore: Math.round(result.riskScore),
-        confidence: Math.round(result.confidence),
-        patternName: result.patternName,
-        priorityLevel: result.priorityLevel,
-        snapshotAt: new Date().toISOString(),
+        samplesUsed: rows.length,
+        lookbackDays: 7,
+        dominantState,
+        avgQuality,
+        avgRisk,
+        derivedAt: new Date().toISOString(),
       },
       outcome: personality === "Clean Mover" || personality === "Trend Follower" ? "correct" : "incorrect",
       accuracy:
@@ -67,6 +127,6 @@ export async function refreshSymbolPersonality(
     });
   } catch (err) {
     // Non-fatal — log and continue
-    logger.error({ err, symbol: result.symbol }, "Failed to persist personality snapshot");
+    logger.error({ err, symbol }, "Failed to persist personality snapshot");
   }
 }
