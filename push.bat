@@ -32,10 +32,10 @@ if not exist ".git" (
 )
 
 echo.
-echo [3/7] Updating .gitignore...
+echo [3/7] Updating .gitignore and untracking secrets...
 :: Define required ignore entries
 set "IGNORE_FILE=.gitignore"
-set "REQUIRED_IGNORES=node_modules dist build .next coverage .turbo .vercel *.log .env .env.local .env.*"
+set "REQUIRED_IGNORES=node_modules dist build .next coverage .turbo .vercel *.log .env .env.local .env.* artifacts/api-server/.env"
 
 :: Create .gitignore if it doesn't exist
 if not exist "%IGNORE_FILE%" (
@@ -50,10 +50,18 @@ for %%i in (%REQUIRED_IGNORES%) do (
         echo %%i >> "%IGNORE_FILE%"
     )
 )
-echo [OK] .gitignore is up to date.
+
+:: Untrack .env files if they were previously committed
+git rm --cached artifacts/api-server/.env 2>nul
+git rm --cached .env 2>nul
+git rm --cached .env.local 2>nul
+git rm --cached .env.development 2>nul
+git rm --cached .env.production 2>nul
+
+echo [OK] .gitignore is up to date and secrets are untracked.
 
 echo.
-echo [4/7] Adding files...
+echo [4/7] Adding and validating files...
 :: We use 'git add .' which respects .gitignore
 git add .
 if %ERRORLEVEL% neq 0 (
@@ -61,7 +69,36 @@ if %ERRORLEVEL% neq 0 (
     pause
     exit /b
 )
-echo [OK] Files added safely (secrets and build files excluded by .gitignore).
+
+:: Protection check BEFORE commit
+echo Checking for staged secrets...
+set "STAGED_SECRETS="
+for /f "tokens=*" %%i in ('git diff --cached --name-only') do (
+    set "file=%%i"
+    if "!file:~-4!"==".env" set "STAGED_SECRETS=1"
+    if "!file!"==".env.local" set "STAGED_SECRETS=1"
+    if "!file:~-4!"==".key" set "STAGED_SECRETS=1"
+    if "!file:~-4!"==".pem" set "STAGED_SECRETS=1"
+    
+    :: Special check for the specific artifact env
+    if "!file!"=="artifacts/api-server/.env" set "STAGED_SECRETS=1"
+)
+
+if "!STAGED_SECRETS!"=="1" (
+    echo.
+    echo **************************************************
+    echo [CRITICAL ERROR] Secrets detected in staged files. 
+    echo Push blocked to prevent security leak.
+    echo Detected files:
+    git diff --cached --name-only | findstr /i ".env .key .pem"
+    echo **************************************************
+    echo.
+    echo Please remove these files from Git tracking and try again.
+    pause
+    exit /b
+)
+
+echo [OK] Files added safely (no secrets detected in staged files).
 
 echo.
 echo [5/7] Committing changes...
@@ -102,10 +139,14 @@ if %ERRORLEVEL% neq 0 (
     for /f "tokens=*" %%i in ('git rev-parse --abbrev-ref HEAD') do set BRANCH=%%i
     
     git push origin !BRANCH!
-    if %ERRORLEVEL% neq 0 (
-        echo [ERROR] Failed to push to GitHub. 
-        echo Check your internet connection and ensure you have permission to push.
+    if !ERRORLEVEL! neq 0 (
+        echo.
+        echo [ERROR] Push failed.
+        echo Check your internet connection, remote configuration, and ensure you have permission to push.
+        pause
+        exit /b
     ) else (
+        echo.
         echo [SUCCESS] Your changes have been pushed to GitHub successfully!
     )
 )

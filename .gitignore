@@ -51,6 +51,7 @@ Thumbs.db
 .env
 .env.local
 .env.*
+artifacts/api-server/.env
 !.env.example
 
 build
@@ -58,6 +59,15 @@ build
 .turbo
 *.log
 
+.vercel
+.env.local
+.env
+node_modules
+dist
+build
+.next
+coverage
+.turbo
 .vercel
 node_modules 
 dist 
@@ -68,13 +78,4 @@ coverage
 .vercel 
 .env 
 .env.local 
-.env 
-node_modules 
-dist 
-build 
-.next 
-coverage 
-.turbo 
-.vercel 
-.env 
-.env.local 
+artifacts/api-server/.env 
