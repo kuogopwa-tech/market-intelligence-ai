@@ -4,25 +4,38 @@ import { detectMarketCondition } from "./indicators";
 import { mergeSignals, type SignalResult } from "./signalEngine";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
-const getGeminiApiKey = () => process.env.GEMINI_API_KEY;
-const getAiModel = () => process.env.AI_MODEL ?? "gemini-2.5-flash";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const AI_TIMEOUT_MS = 25000;
 const MAX_RETRIES = 2;
 const INITIAL_RETRY_DELAY_MS = 500;
 
-// Initialize Gemini client
-let genAiClient: GoogleGenerativeAI | null = null;
-
-function initializeGeminiClient(): GoogleGenerativeAI {
-  const apiKey = getGeminiApiKey();
-  if (!genAiClient) {
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is not set");
-    }
-    genAiClient = new GoogleGenerativeAI(apiKey);
+function getGeminiApiKey() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    logger.warn("Gemini key check: NOT FOUND");
+    throw new Error("GEMINI_API_KEY missing");
   }
-  return genAiClient;
+  
+  // Safe logging
+  const keyStr = String(key);
+  const prefix = keyStr.substring(0, 4);
+  const length = keyStr.length;
+  logger.info({ keyExists: true, prefix: `${prefix}...`, length }, "Gemini key detected at runtime");
+  
+  if (!keyStr.startsWith("AIza")) {
+    logger.warn({ prefix }, "CAUTION: Gemini key does not start with 'AIza'. This key might be from Google Cloud Console instead of AI Studio and may NOT work with this SDK.");
+  }
+  
+  return key;
+}
+
+function getAiModel() {
+  return process.env.AI_MODEL ?? "gemini-2.5-flash";
+}
+
+function getGeminiClient(): GoogleGenerativeAI {
+  const key = getGeminiApiKey();
+  return new GoogleGenerativeAI(key);
 }
 
 export interface AnalysisResult {
@@ -57,20 +70,9 @@ export async function checkAiOnline(): Promise<{
   error: string | null;
 }> {
   const start = Date.now();
-  const apiKey = getGeminiApiKey();
   const aiModel = getAiModel();
   try {
-    if (!apiKey) {
-      return {
-        online: false,
-        model: null,
-        provider: null,
-        responseTimeMs: null,
-        error: "GEMINI_API_KEY not configured",
-      };
-    }
-
-    const client = initializeGeminiClient();
+    const client = getGeminiClient();
     const model = client.getGenerativeModel({ model: aiModel });
 
     // Perform a lightweight health check with countTokens
@@ -88,8 +90,8 @@ export async function checkAiOnline(): Promise<{
     logger.error({ provider: "gemini", error: errorMsg }, "Gemini health check failed");
     return {
       online: false,
-      model: null,
-      provider: null,
+      model: aiModel,
+      provider: "gemini",
       responseTimeMs: null,
       error: errorMsg,
     };
@@ -99,17 +101,12 @@ export async function checkAiOnline(): Promise<{
 async function queryAi(prompt: string): Promise<string> {
   let lastError: Error | null = null;
   let retryDelay = INITIAL_RETRY_DELAY_MS;
-  const apiKey = getGeminiApiKey();
   const aiModel = getAiModel();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const startTime = Date.now();
     try {
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY not configured");
-      }
-
-      const client = initializeGeminiClient();
+      const client = getGeminiClient();
       const model = client.getGenerativeModel({
         model: aiModel,
         generationConfig: {

@@ -3,24 +3,20 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Load .env from the artifact directory to ensure correct key is used
-// Note: In development we use src/index.ts, in production dist/index.mjs
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 config({ path: path.resolve(__dirname, "../.env") });
-// Also load from root .env as fallback/complement if needed, but primary is the one above
-config({ path: path.resolve(__dirname, "../../../.env") });
+
+console.log("GEMINI KEY LOADED:", {
+  exists: !!process.env.GEMINI_API_KEY,
+  prefix: process.env.GEMINI_API_KEY?.slice(0, 4),
+  length: process.env.GEMINI_API_KEY?.length
+});
 
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startBackgroundScanner } from "./lib/backgroundScanner";
 import { JWT_SECRET } from "./lib/config"; // Ensure secret is validated on startup
-
-// Safe startup logging for Gemini API Key
-const geminiKey = process.env.GEMINI_API_KEY;
-logger.info(`Gemini key detected: ${geminiKey ? "YES" : "NO"}`);
-if (geminiKey && !geminiKey.startsWith("AIza")) {
-  logger.warn("Gemini key detected but does not start with 'AIza'. It might be invalid.");
-}
 
 const rawPort = process.env["PORT"];
 

@@ -53,4 +53,19 @@ Thumbs.db
 .env.*
 !.env.example
 
+build
+.next
+.turbo
+*.log
+
 .vercel
+node_modules 
+dist 
+build 
+.next 
+coverage 
+.turbo 
+.vercel 
+.env 
+.env.local 
+.env 
