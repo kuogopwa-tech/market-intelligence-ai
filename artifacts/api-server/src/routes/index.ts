@@ -9,6 +9,8 @@ import aiRouter from "./ai";
 import scannerRouter from "./scanner";
 import analyticsRouter from "./analytics";
 import intelligenceRouter from "./intelligence";
+import devRouter from "./dev";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
@@ -22,5 +24,7 @@ router.use(aiRouter);
 router.use(scannerRouter);
 router.use(analyticsRouter);
 router.use(intelligenceRouter);
+router.use(devRouter);
+router.use("/auth", authRouter);
 
 export default router;

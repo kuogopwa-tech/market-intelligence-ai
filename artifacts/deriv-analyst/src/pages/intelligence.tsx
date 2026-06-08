@@ -551,7 +551,9 @@ function DailyQualityChart({ dailySummaries }: { dailySummaries: DailySummaryEnt
 
 export default function Intelligence() {
   const { selectedSymbol } = useAppStore();
-  const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+  // Use a dedicated API base for network calls. Vite can set `VITE_API_BASE` in dev/preview,
+  // otherwise fall back to an empty string which makes requests relative (and proxied).
+  const API_BASE = ((import.meta.env.VITE_API_BASE as string) ?? "").replace(/\/$/, "");
 
   const [status, setStatus] = useState<IntelligenceStatus | null>(null);
   const [timingModel, setTimingModel] = useState<TimingModelResponse | null>(null);
@@ -568,11 +570,11 @@ export default function Intelligence() {
     async function fetchAll() {
       try {
         const [statusRes, timingRes, evolutionRes, leaderboardRes, dailyRes] = await Promise.allSettled([
-          fetch(`${BASE}/api/intelligence/status`).then((r) => r.json()),
-          fetch(`${BASE}/api/intelligence/hourly/${selectedSymbol}`).then((r) => r.json()),
-          fetch(`${BASE}/api/intelligence/evolution/${selectedSymbol}`).then((r) => r.json()),
-          fetch(`${BASE}/api/intelligence/aggregated`).then((r) => r.json()),
-          fetch(`${BASE}/api/intelligence/daily/${selectedSymbol}`).then((r) => r.json()),
+          fetch(`${API_BASE}/api/intelligence/status`).then((r) => r.json()),
+          fetch(`${API_BASE}/api/intelligence/hourly/${selectedSymbol}`).then((r) => r.json()),
+          fetch(`${API_BASE}/api/intelligence/evolution/${selectedSymbol}`).then((r) => r.json()),
+          fetch(`${API_BASE}/api/intelligence/aggregated`).then((r) => r.json()),
+          fetch(`${API_BASE}/api/intelligence/daily/${selectedSymbol}`).then((r) => r.json()),
         ]);
         if (cancelled) return;
         if (statusRes.status === "fulfilled") setStatus(statusRes.value as IntelligenceStatus);
@@ -590,7 +592,7 @@ export default function Intelligence() {
     void fetchAll();
     // Poll status every 10s, other data every 30s
     const statusInterval = setInterval(() => {
-      fetch(`${BASE}/api/intelligence/status`)
+      fetch(`${API_BASE}/api/intelligence/status`)
         .then((r) => r.json())
         .then((d) => !cancelled && setStatus(d as IntelligenceStatus))
         .catch(() => {});
@@ -599,7 +601,7 @@ export default function Intelligence() {
       cancelled = true;
       clearInterval(statusInterval);
     };
-  }, [selectedSymbol, refreshKey, BASE]);
+  }, [selectedSymbol, refreshKey, API_BASE]);
 
   const tabs = [
     { id: "timing" as const, label: "Adaptive Timing", icon: Clock },

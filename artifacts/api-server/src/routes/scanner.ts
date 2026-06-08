@@ -6,6 +6,7 @@ import { SUPPORTED_SYMBOLS, getCandles } from "../lib/derivWs";
 import { calculateAllIndicators } from "../lib/indicators";
 import { mergeSignals, computeSignalQuality } from "../lib/signalEngine";
 import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine";
+import { runBackgroundScan, getSchedulerStatus } from "../lib/backgroundScanner";
 
 const router = Router();
 
@@ -248,6 +249,27 @@ router.get("/scanner/scan", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Scanner scan failed");
     res.status(500).json({ error: "Scanner failed" });
+  }
+});
+
+router.post("/scanner/cron", async (req, res) => {
+  // Simple auth check for Vercel Cron
+  const authHeader = req.headers.authorization;
+  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    // We don't await this to avoid Vercel timeout if the scan takes too long, 
+    // but Vercel functions terminate when the response is sent.
+    // So for serverless, we might actually need to await it or use a different strategy.
+    // However, if we await it, we must ensure it stays under the limit (usually 10s-60s).
+    await runBackgroundScan();
+    res.json({ success: true, status: getSchedulerStatus() });
+  } catch (err) {
+    req.log.error({ err }, "Cron scan failed");
+    res.status(500).json({ error: "Cron scan failed" });
   }
 });
 

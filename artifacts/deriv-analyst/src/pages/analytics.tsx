@@ -589,7 +589,9 @@ export default function Analytics() {
   );
 
   const hasData = (overview?.totalSnapshots ?? 0) > 0;
-  const selectedProfile = overview?.profiles.find((p) => p.symbol === selectedSymbol);
+  const selectedProfile = overview?.profiles?.find(
+  (p) => p.symbol === selectedSymbol
+);
 
   const tabs = [
     { id: "profiles" as const, label: "Symbol Profiles", icon: BrainCircuit },
@@ -622,9 +624,10 @@ export default function Analytics() {
         <div className="flex items-center gap-2">
           {overview && (
             <span className="text-xs text-slate-600">
-              {overview.totalSnapshots.toLocaleString()} snapshots · {overview.symbolsProfiled} symbols
+              {(overview?.totalSnapshots ?? 0).toLocaleString()} snapshots ·{" "}
+              {(overview?.symbolsProfiled ?? 0).toLocaleString()} symbols
             </span>
-          )}
+    )}
           <button
             onClick={() => refetch()}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300 transition-all"
@@ -663,33 +666,32 @@ export default function Analytics() {
             {[
               {
                 label: "Snapshots Recorded",
-                value: overview!.totalSnapshots.toLocaleString(),
+                value: (overview?.totalSnapshots ?? 0).toLocaleString(),
                 sub: "across all markets",
                 color: "text-slate-200",
               },
               {
                 label: "Symbols Profiled",
-                value: overview!.symbolsProfiled,
+                value: overview?.symbolsProfiled ?? 0,
                 sub: "with behavior data",
                 color: "text-blue-400",
               },
               {
                 label: "Most Predictable",
                 value:
-                  overview!.profiles.sort((a, b) => b.predictabilityScore - a.predictabilityScore)[0]
-                    ?.symbol ?? "—",
-                sub: `score: ${overview!.profiles[0]?.predictabilityScore ?? 0}`,
+                  ((overview?.profiles ?? []).slice().sort((a, b) => b.predictabilityScore - a.predictabilityScore)[0]
+                    ?.symbol) ?? "—",
+                sub: `score: ${((overview?.profiles ?? []).slice().sort((a, b) => b.predictabilityScore - a.predictabilityScore)[0]?.predictabilityScore) ?? 0}`,
                 color: "text-green-400",
               },
               {
                 label: "Cleanest Mover",
                 value:
-                  overview!.profiles
-                    .filter((p) => p.personality === "Clean Mover")[0]?.symbol ??
-                  overview!.profiles.sort((a, b) => b.cleanSetupFrequency - a.cleanSetupFrequency)[0]
-                    ?.symbol ??
+                  ((overview?.profiles ?? []).filter((p) => p.personality === "Clean Mover")[0]?.symbol) ??
+                  ((overview?.profiles ?? []).slice().sort((a, b) => b.cleanSetupFrequency - a.cleanSetupFrequency)[0]
+                    ?.symbol) ??
                   "—",
-                sub: `clean: ${overview!.profiles.sort((a, b) => b.cleanSetupFrequency - a.cleanSetupFrequency)[0]?.cleanSetupFrequency ?? 0}%`,
+                sub: `clean: ${((overview?.profiles ?? []).slice().sort((a, b) => b.cleanSetupFrequency - a.cleanSetupFrequency)[0]?.cleanSetupFrequency) ?? 0}%`,
                 color: "text-emerald-400",
               },
             ].map((s) => (
@@ -727,7 +729,7 @@ export default function Analytics() {
           {activeTab === "profiles" && (
             <div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {overview!.profiles.map((p) => (
+                {(overview?.profiles ?? []).map((p) => (
                   <ProfileCard
                     key={p.symbol}
                     profile={p}
@@ -748,7 +750,7 @@ export default function Analytics() {
             <div className="space-y-4">
               {/* Symbol selector */}
               <div className="flex flex-wrap gap-1.5">
-                {overview!.profiles.map((p) => {
+                {(overview?.profiles ?? []).map((p) => {
                   const cfg = personalityCfg(p.personality);
                   return (
                     <button
@@ -830,7 +832,7 @@ export default function Analytics() {
             <div className="space-y-4">
               {/* Symbol selector */}
               <div className="flex flex-wrap gap-1.5">
-                {overview!.profiles.map((p) => (
+                {(overview?.profiles ?? []).map((p) => (
                   <button
                     key={p.symbol}
                     onClick={() => setSelectedSymbol(p.symbol)}
@@ -906,7 +908,7 @@ export default function Analytics() {
             <div className="space-y-4">
               {/* Symbol selector */}
               <div className="flex flex-wrap gap-1.5">
-                {overview!.profiles.map((p) => (
+                {(overview?.profiles ?? []).map((p) => (
                   <button
                     key={p.symbol}
                     onClick={() => setSelectedSymbol(p.symbol)}
@@ -1016,7 +1018,7 @@ export default function Analytics() {
             <div className="space-y-4">
               {/* Symbol selector */}
               <div className="flex flex-wrap gap-1.5">
-                {overview!.profiles.map((p) => (
+                {(overview?.profiles ?? []).map((p) => (
                   <button
                     key={p.symbol}
                     onClick={() => setSelectedSymbol(p.symbol)}
@@ -1112,7 +1114,7 @@ export default function Analytics() {
                     — across all profiled symbols
                   </span>
                 </h3>
-                <RhythmChart profiles={overview!.profiles} />
+                <RhythmChart profiles={overview?.profiles ?? []} />
               </div>
 
               <div className="rounded-xl border border-slate-800 overflow-hidden">
@@ -1139,7 +1141,7 @@ export default function Analytics() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
-                    {overview!.profiles.map((p) => {
+                    {(overview?.profiles ?? []).map((p) => {
                       const cfg = personalityCfg(p.personality);
                       return (
                         <tr

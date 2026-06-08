@@ -4,3 +4,4 @@ export * from "./aiAnalysis";
 export * from "./memory";
 export * from "./symbolTimeline";
 export * from "./intelligence";
+export * from "./users";

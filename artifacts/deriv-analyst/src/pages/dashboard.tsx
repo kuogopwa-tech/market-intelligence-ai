@@ -80,17 +80,27 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (candles && seriesRef.current) {
-      const formattedData = candles.map(c => ({
-        time: c.epoch as any,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
-      seriesRef.current.setData(formattedData);
-      chartRef.current?.timeScale().fitContent();
-    }
+    if (!seriesRef.current) return;
+
+    const candleRows = Array.isArray(candles)
+      ? candles
+      : Array.isArray((candles as any)?.data)
+        ? (candles as any).data
+        : Array.isArray((candles as any)?.candles)
+          ? (candles as any).candles
+          : [];
+
+    if (candleRows.length === 0) return;
+
+    const formattedData = candleRows.map((c: any) => ({
+      time: c.epoch as any,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+    seriesRef.current.setData(formattedData);
+    chartRef.current?.timeScale().fitContent();
   }, [candles]);
 
   const renderTrendIcon = (trend?: string) => {

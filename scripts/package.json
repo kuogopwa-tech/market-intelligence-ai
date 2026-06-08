@@ -9,6 +9,9 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "bcryptjs": "^2.4.3",
+    "drizzle-orm": "catalog:",
+    "@workspace/db": "workspace:*"
   }
 }

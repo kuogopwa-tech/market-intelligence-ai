@@ -1,0 +1,4 @@
+mcpServers:
+  - name: new-mcp-server
+    url: https://new-mcp-server.com
+    token: new-mcp-server-token

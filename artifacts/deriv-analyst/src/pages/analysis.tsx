@@ -214,7 +214,7 @@ export default function Analysis() {
                     Supporting Signals
                   </p>
                   <div className="space-y-1">
-                    {signals.supportingSignals.slice(0, 4).map((s, i) => (
+                    {(signals?.supportingSignals ?? []).slice(0, 4).map((s, i) => (
                       <div key={i} className="flex items-start gap-1.5 text-xs">
                         <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
                         <span className="text-slate-300">{s}</span>

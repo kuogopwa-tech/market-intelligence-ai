@@ -66,6 +66,14 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Proxy API calls to backend during development to avoid CORS and origin issues.
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     port,

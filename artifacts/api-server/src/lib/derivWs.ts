@@ -47,9 +47,25 @@ function makeWs(): WebSocket {
 function fetchCandlesFromDeriv(symbol: string, granularity: number, count: number): Promise<DerivCandle[]> {
   return new Promise((resolve, reject) => {
     const ws = makeWs();
+    let settled = false;
+
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      ws.removeAllListeners();
+      try {
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close();
+        }
+      } catch {
+        // ignore close errors
+      }
+      fn();
+    };
+
     const timeout = setTimeout(() => {
-      ws.close();
-      reject(new Error("Deriv WS timeout"));
+      settle(() => reject(new Error("Deriv WS timeout")));
     }, 15000);
 
     ws.on("open", () => {
@@ -69,14 +85,10 @@ function fetchCandlesFromDeriv(symbol: string, granularity: number, count: numbe
       try {
         const msg = JSON.parse(data.toString());
         if (msg.error) {
-          clearTimeout(timeout);
-          ws.close();
-          reject(new Error(msg.error.message));
+          settle(() => reject(new Error(msg.error.message)));
           return;
         }
         if (msg.candles) {
-          clearTimeout(timeout);
-          ws.close();
           const candles: DerivCandle[] = msg.candles.map((c: { epoch: number; open: string; high: string; low: string; close: string }) => ({
             epoch: c.epoch,
             open: parseFloat(c.open as unknown as string),
@@ -84,7 +96,7 @@ function fetchCandlesFromDeriv(symbol: string, granularity: number, count: numbe
             low: parseFloat(c.low as unknown as string),
             close: parseFloat(c.close as unknown as string),
           }));
-          resolve(candles);
+          settle(() => resolve(candles));
         }
       } catch {
         // ignore parse errors
@@ -92,8 +104,13 @@ function fetchCandlesFromDeriv(symbol: string, granularity: number, count: numbe
     });
 
     ws.on("error", (err) => {
-      clearTimeout(timeout);
-      reject(err);
+      settle(() => reject(err));
+    });
+
+    ws.on("close", () => {
+      if (!settled) {
+        settle(() => reject(new Error("Deriv WS closed before response")));
+      }
     });
   });
 }
@@ -101,9 +118,25 @@ function fetchCandlesFromDeriv(symbol: string, granularity: number, count: numbe
 function fetchTicksFromDeriv(symbol: string, count: number): Promise<DerivTick[]> {
   return new Promise((resolve, reject) => {
     const ws = makeWs();
+    let settled = false;
+
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      ws.removeAllListeners();
+      try {
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close();
+        }
+      } catch {
+        // ignore close errors
+      }
+      fn();
+    };
+
     const timeout = setTimeout(() => {
-      ws.close();
-      reject(new Error("Deriv WS timeout"));
+      settle(() => reject(new Error("Deriv WS timeout")));
     }, 15000);
 
     ws.on("open", () => {
@@ -122,14 +155,10 @@ function fetchTicksFromDeriv(symbol: string, count: number): Promise<DerivTick[]
       try {
         const msg = JSON.parse(data.toString());
         if (msg.error) {
-          clearTimeout(timeout);
-          ws.close();
-          reject(new Error(msg.error.message));
+          settle(() => reject(new Error(msg.error.message)));
           return;
         }
         if (msg.history) {
-          clearTimeout(timeout);
-          ws.close();
           const prices: number[] = msg.history.prices;
           const times: number[] = msg.history.times;
           const ticks: DerivTick[] = prices.map((p, i) => ({
@@ -137,7 +166,7 @@ function fetchTicksFromDeriv(symbol: string, count: number): Promise<DerivTick[]
             price: parseFloat(String(p)),
             symbol,
           }));
-          resolve(ticks);
+          settle(() => resolve(ticks));
         }
       } catch {
         // ignore parse errors
@@ -145,8 +174,13 @@ function fetchTicksFromDeriv(symbol: string, count: number): Promise<DerivTick[]
     });
 
     ws.on("error", (err) => {
-      clearTimeout(timeout);
-      reject(err);
+      settle(() => reject(err));
+    });
+
+    ws.on("close", () => {
+      if (!settled) {
+        settle(() => reject(new Error("Deriv WS closed before response")));
+      }
     });
   });
 }
@@ -195,4 +229,6 @@ export function warmupCache(symbol: string): void {
   getTicks(symbol, 50).catch(() => {});
 }
 
-SUPPORTED_SYMBOLS.slice(0, 3).forEach((s) => warmupCache(s.symbol));
+if (process.env.VERCEL !== "1") {
+  SUPPORTED_SYMBOLS.slice(0, 3).forEach((s) => warmupCache(s.symbol));
+}

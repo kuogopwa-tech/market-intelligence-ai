@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { predictionsTable, learningMemoryTable } from "@workspace/db";
-import { eq, desc, sql, isNull } from "drizzle-orm";
+import { eq, desc, sql, isNull, and, gt } from "drizzle-orm";
 import { CreatePredictionBody, UpdatePredictionOutcomeBody, UpdatePredictionOutcomeParams } from "@workspace/api-zod";
 import { getCandles } from "../lib/derivWs";
 import { calculateAllIndicators } from "../lib/indicators";
@@ -121,7 +121,7 @@ router.post("/predictions", async (req, res) => {
 
     res.status(201).json(formatPrediction(row));
   } catch (err) {
-    req.log.error({ err }, "Failed to create prediction");
+    req.log.error({ err, symbol, direction }, "Failed to create prediction in database");
     res.status(500).json({ error: "Failed to create prediction" });
   }
 });
@@ -227,6 +227,30 @@ router.post("/predictions/auto", async (req, res) => {
     // Auto-evaluate any stale pending predictions
     await autoEvaluatePending(symbol, currentPrice);
 
+    // Check for duplicate pending prediction within last 60 seconds
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const [existingPrediction] = await db
+      .select()
+      .from(predictionsTable)
+      .where(
+        and(
+          eq(predictionsTable.symbol, symbol),
+          isNull(predictionsTable.outcome),
+          gt(predictionsTable.createdAt, oneMinuteAgo)
+        )
+      )
+      .limit(1);
+
+    if (existingPrediction) {
+      res.json({
+        generated: false,
+        duplicate: true,
+        reason: "Recent pending prediction already exists",
+        prediction: formatPrediction(existingPrediction),
+      });
+      return;
+    }
+
     const indicators = calculateAllIndicators(symbol, candles);
     const signals = mergeSignals(indicators);
     const pattern = classifyIndicatorPattern(indicators);
@@ -243,7 +267,6 @@ router.post("/predictions/auto", async (req, res) => {
       return;
     }
 
-    // Direction based on signal dominance
     const direction: "rise" | "fall" = signals.bullishScore > 50 ? "rise" : "fall";
     const expiresAt = Math.floor(Date.now() / 1000) + 5 * 60; // 5 minutes expiry
 

@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useGetMarketSymbols, getGetMarketSymbolsQueryKey, useGetAiStatus, getGetAiStatusQueryKey } from "@workspace/api-client-react";
 import { useAppStore } from "../store";
 import { useSignalAlert } from "../hooks/useSignalAlert";
+import { useAuth } from "../hooks/use-auth";
 import { 
   Activity, 
   BarChart2, 
@@ -13,6 +14,8 @@ import {
   ScanSearch,
   LineChart,
   Cpu,
+  LogOut,
+  User as UserIcon,
 } from "lucide-react";
 import {
   Select,
@@ -21,7 +24,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface LayoutProps {
   children: ReactNode;
@@ -47,6 +59,8 @@ function AlertMonitor() {
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const { selectedSymbol, setSelectedSymbol, granularity, setGranularity } = useAppStore();
+  const { user, logout } = useAuth();
+  const isAuthPage = location === "/login" || location === "/register";
 
   const { data: symbols, isLoading: isLoadingSymbols } = useGetMarketSymbols({
     query: {
@@ -61,6 +75,10 @@ export function Layout({ children }: LayoutProps) {
       refetchInterval: 30000,
     }
   });
+
+  if (isAuthPage) {
+    return <div className="dark min-h-screen bg-background text-foreground">{children}</div>;
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground dark">
@@ -92,7 +110,7 @@ export function Layout({ children }: LayoutProps) {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-4">
           <div className="flex items-center gap-2 text-xs">
             {aiStatus?.online ? (
               <>
@@ -106,6 +124,25 @@ export function Layout({ children }: LayoutProps) {
               </>
             )}
           </div>
+          
+          {user && (
+            <div className="flex items-center justify-between p-2 border border-border rounded-lg bg-background/50">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                  <UserIcon className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0 overflow-hidden">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold truncate">
+                    {user.role}
+                  </div>
+                  <div className="text-xs font-medium truncate">{user.email}</div>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={logout}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -124,7 +161,8 @@ export function Layout({ children }: LayoutProps) {
                     <SelectValue placeholder="Select symbol" />
                   </SelectTrigger>
                   <SelectContent>
-                    {symbols?.map((sym) => (
+
+                    {(Array.isArray(symbols) ? symbols : Array.isArray((symbols as any)?.data) ? (symbols as any).data : []).map((sym) => (
                       <SelectItem key={sym.symbol} value={sym.symbol}>
                         {sym.displayName}
                       </SelectItem>
@@ -151,7 +189,32 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4" />
+          <div className="flex items-center gap-4">
+            {user && (
+              <div className="md:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <UserIcon className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col">
+                        <span>{user.email}</span>
+                        <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </div>
         </header>
 
         {/* Page Content */}

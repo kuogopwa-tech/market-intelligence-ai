@@ -191,7 +191,7 @@ export function getSchedulerStatus() {
 
 // ── Full background scan run ───────────────────────────────────────────────────
 
-async function runBackgroundScan(): Promise<void> {
+export async function runBackgroundScan(): Promise<void> {
   if (scanLock) {
     logger.warn("Background scan skipped — previous scan still running");
     return;

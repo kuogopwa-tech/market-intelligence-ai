@@ -1,0 +1,53 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-bg-950 text-text-100 antialiased;
+  background-image:
+    radial-gradient(1000px 600px at 10% -20%, rgba(34, 211, 238, 0.08), transparent 55%),
+    radial-gradient(900px 600px at 110% 0%, rgba(59, 130, 246, 0.08), transparent 52%),
+    radial-gradient(700px 500px at 50% 120%, rgba(139, 92, 246, 0.08), transparent 56%);
+}
+
+.glass {
+  @apply border border-white/10 bg-white/[0.06] backdrop-blur-xl shadow-glass;
+}
+
+.glowing-card {
+  @apply glass rounded-2xl;
+}
+
+.kpi-title {
+  @apply text-[11px] uppercase tracking-[0.12em] text-text-500;
+}
+
+.kpi-value {
+  @apply font-mono text-2xl font-semibold text-text-100;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.15) 0%, rgba(148, 163, 184, 0.28) 45%, rgba(148, 163, 184, 0.15) 100%);
+  background-size: 220% 100%;
+  animation: shimmer 2.2s linear infinite;
+}
+
+.signal-active {
+  @apply animate-pulse-glow;
+}
+
+.data-enter {
+  @apply animate-slide-up;
+}

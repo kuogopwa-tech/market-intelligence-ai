@@ -2,11 +2,27 @@ import { logger } from "./logger";
 import type { IndicatorSet } from "./indicators";
 import { detectMarketCondition } from "./indicators";
 import { mergeSignals, type SignalResult } from "./signalEngine";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
-const AI_BASE_URL = process.env.AI_BASE_URL ?? "http://localhost:11434";
-const AI_MODEL = process.env.AI_MODEL ?? "qwen2.5:3b";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const AI_MODEL = process.env.AI_MODEL ?? "gemini-2.5-flash";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const AI_TIMEOUT_MS = 25000;
+const MAX_RETRIES = 2;
+const INITIAL_RETRY_DELAY_MS = 500;
+
+// Initialize Gemini client
+let genAiClient: GoogleGenerativeAI | null = null;
+
+function initializeGeminiClient(): GoogleGenerativeAI {
+  if (!genAiClient) {
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY environment variable is not set");
+    }
+    genAiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
+  }
+  return genAiClient;
+}
 
 export interface AnalysisResult {
   reasoning: string;
@@ -41,61 +57,146 @@ export async function checkAiOnline(): Promise<{
 }> {
   const start = Date.now();
   try {
-    const res = await fetch(`${AI_BASE_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as { models?: { name: string }[] };
-    const model = data.models?.[0]?.name ?? AI_MODEL;
-    return {
-      online: true,
-      model,
-      provider: "ollama",
-      responseTimeMs: Date.now() - start,
-      error: null,
-    };
-  } catch {
-    try {
-      const res2 = await fetch(`${AI_BASE_URL}/health`, { signal: AbortSignal.timeout(3000) });
-      if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
-      return {
-        online: true,
-        model: AI_MODEL,
-        provider: "llama.cpp",
-        responseTimeMs: Date.now() - start,
-        error: null,
-      };
-    } catch (err2) {
+    if (!GEMINI_API_KEY) {
       return {
         online: false,
         model: null,
         provider: null,
         responseTimeMs: null,
-        error: String(err2),
+        error: "GEMINI_API_KEY not configured",
       };
     }
+
+    const client = initializeGeminiClient();
+    const model = client.getGenerativeModel({ model: AI_MODEL });
+
+    // Perform a lightweight health check with countTokens
+    await model.countTokens("health-check");
+
+    return {
+      online: true,
+      model: AI_MODEL,
+      provider: "gemini",
+      responseTimeMs: Date.now() - start,
+      error: null,
+    };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    logger.error({ provider: "gemini", error: errorMsg }, "Gemini health check failed");
+    return {
+      online: false,
+      model: null,
+      provider: null,
+      responseTimeMs: null,
+      error: errorMsg,
+    };
   }
 }
 
 async function queryAi(prompt: string): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
-  try {
-    const res = await fetch(`${AI_BASE_URL}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+  let lastError: Error | null = null;
+  let retryDelay = INITIAL_RETRY_DELAY_MS;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const startTime = Date.now();
+    try {
+      if (!GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY not configured");
+      }
+
+      const client = initializeGeminiClient();
+      const model = client.getGenerativeModel({
         model: AI_MODEL,
-        prompt,
-        stream: false,
-        options: { temperature: 0.25, num_predict: 500, top_p: 0.9 },
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error(`AI HTTP ${res.status}`);
-    const data = (await res.json()) as { response?: string };
-    return data.response ?? "";
-  } finally {
-    clearTimeout(timeout);
+        generationConfig: {
+          temperature: 0.25,
+          maxOutputTokens: 500,
+          topP: 0.9,
+        },
+        safetySettings: [
+          {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+          },
+        ],
+      });
+
+      // Create abort controller with timeout
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+      try {
+        const response = await Promise.race([
+          model.generateContent(prompt),
+          new Promise<never>((_, reject) => {
+            if (controller.signal.aborted) {
+              reject(new Error("Request timeout"));
+            }
+            controller.signal.addEventListener("abort", () => {
+              reject(new Error("Request timeout"));
+            });
+          }),
+        ]);
+
+        clearTimeout(timeout);
+
+        const latencyMs = Date.now() - startTime;
+        logger.info(
+          { model: AI_MODEL, latencyMs, attempt, provider: "gemini" },
+          "Gemini request succeeded"
+        );
+
+        const textContent = response.response.text();
+        return textContent;
+      } finally {
+        clearTimeout(timeout);
+      }
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const latencyMs = Date.now() - startTime;
+
+      if (attempt < MAX_RETRIES) {
+        logger.warn(
+          {
+            model: AI_MODEL,
+            attempt,
+            maxRetries: MAX_RETRIES,
+            latencyMs,
+            error: lastError.message,
+            provider: "gemini",
+          },
+          `Gemini request failed, retrying in ${retryDelay}ms`
+        );
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        retryDelay *= 2; // Exponential backoff
+      } else {
+        logger.error(
+          {
+            model: AI_MODEL,
+            attempt,
+            maxRetries: MAX_RETRIES,
+            latencyMs,
+            error: lastError.message,
+            provider: "gemini",
+          },
+          "Gemini request failed after all retries"
+        );
+      }
+    }
   }
+
+  throw lastError || new Error("Unknown error querying Gemini API");
 }
 
 function buildPrompt(
