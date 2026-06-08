@@ -69,3 +69,12 @@ coverage
 .env 
 .env.local 
 .env 
+node_modules 
+dist 
+build 
+.next 
+coverage 
+.turbo 
+.vercel 
+.env 
+.env.local 
