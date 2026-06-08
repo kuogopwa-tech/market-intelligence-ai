@@ -4,8 +4,8 @@ import { detectMarketCondition } from "./indicators";
 import { mergeSignals, type SignalResult } from "./signalEngine";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const AI_MODEL = process.env.AI_MODEL ?? "gemini-2.5-flash";
+const getGeminiApiKey = () => process.env.GEMINI_API_KEY;
+const getAiModel = () => process.env.AI_MODEL ?? "gemini-2.5-flash";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const AI_TIMEOUT_MS = 25000;
 const MAX_RETRIES = 2;
@@ -15,11 +15,12 @@ const INITIAL_RETRY_DELAY_MS = 500;
 let genAiClient: GoogleGenerativeAI | null = null;
 
 function initializeGeminiClient(): GoogleGenerativeAI {
+  const apiKey = getGeminiApiKey();
   if (!genAiClient) {
-    if (!GEMINI_API_KEY) {
+    if (!apiKey) {
       throw new Error("GEMINI_API_KEY environment variable is not set");
     }
-    genAiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
+    genAiClient = new GoogleGenerativeAI(apiKey);
   }
   return genAiClient;
 }
@@ -56,8 +57,10 @@ export async function checkAiOnline(): Promise<{
   error: string | null;
 }> {
   const start = Date.now();
+  const apiKey = getGeminiApiKey();
+  const aiModel = getAiModel();
   try {
-    if (!GEMINI_API_KEY) {
+    if (!apiKey) {
       return {
         online: false,
         model: null,
@@ -68,14 +71,14 @@ export async function checkAiOnline(): Promise<{
     }
 
     const client = initializeGeminiClient();
-    const model = client.getGenerativeModel({ model: AI_MODEL });
+    const model = client.getGenerativeModel({ model: aiModel });
 
     // Perform a lightweight health check with countTokens
     await model.countTokens("health-check");
 
     return {
       online: true,
-      model: AI_MODEL,
+      model: aiModel,
       provider: "gemini",
       responseTimeMs: Date.now() - start,
       error: null,
@@ -96,17 +99,19 @@ export async function checkAiOnline(): Promise<{
 async function queryAi(prompt: string): Promise<string> {
   let lastError: Error | null = null;
   let retryDelay = INITIAL_RETRY_DELAY_MS;
+  const apiKey = getGeminiApiKey();
+  const aiModel = getAiModel();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const startTime = Date.now();
     try {
-      if (!GEMINI_API_KEY) {
+      if (!apiKey) {
         throw new Error("GEMINI_API_KEY not configured");
       }
 
       const client = initializeGeminiClient();
       const model = client.getGenerativeModel({
-        model: AI_MODEL,
+        model: aiModel,
         generationConfig: {
           temperature: 0.25,
           maxOutputTokens: 500,
@@ -153,7 +158,7 @@ async function queryAi(prompt: string): Promise<string> {
 
         const latencyMs = Date.now() - startTime;
         logger.info(
-          { model: AI_MODEL, latencyMs, attempt, provider: "gemini" },
+          { model: aiModel, latencyMs, attempt, provider: "gemini" },
           "Gemini request succeeded"
         );
 
@@ -169,7 +174,7 @@ async function queryAi(prompt: string): Promise<string> {
       if (attempt < MAX_RETRIES) {
         logger.warn(
           {
-            model: AI_MODEL,
+            model: aiModel,
             attempt,
             maxRetries: MAX_RETRIES,
             latencyMs,
@@ -183,7 +188,7 @@ async function queryAi(prompt: string): Promise<string> {
       } else {
         logger.error(
           {
-            model: AI_MODEL,
+            model: aiModel,
             attempt,
             maxRetries: MAX_RETRIES,
             latencyMs,
@@ -355,7 +360,7 @@ function ruleBasedAnalysis(
     noTradeZone: signals.noTradeZone,
     signals: allSignals,
     warnings,
-    aiModel: null,
+    aiModel: getAiModel(),
     cached: false,
   };
 }

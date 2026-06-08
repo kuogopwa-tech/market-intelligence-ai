@@ -41,6 +41,9 @@ export const SUPPORTED_SYMBOLS = [
 
 function makeWs(): WebSocket {
   const ws = new WebSocket(DERIV_WS_URL);
+  ws.on("error", (err) => {
+    logger.error({ err }, "Deriv WebSocket error");
+  });
   return ws;
 }
 
@@ -52,14 +55,18 @@ function fetchCandlesFromDeriv(symbol: string, granularity: number, count: numbe
     const settle = (fn: () => void) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeout);
-      ws.removeAllListeners();
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      
       try {
+        ws.removeAllListeners();
+        // Prevent "WebSocket was closed before the connection was established"
         if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
           ws.close();
         }
-      } catch {
-        // ignore close errors
+      } catch (err) {
+        logger.debug({ err }, "Error during ws cleanup");
       }
       fn();
     };
@@ -123,14 +130,18 @@ function fetchTicksFromDeriv(symbol: string, count: number): Promise<DerivTick[]
     const settle = (fn: () => void) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeout);
-      ws.removeAllListeners();
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      
       try {
+        ws.removeAllListeners();
+        // Prevent "WebSocket was closed before the connection was established"
         if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
           ws.close();
         }
-      } catch {
-        // ignore close errors
+      } catch (err) {
+        logger.debug({ err }, "Error during ws cleanup");
       }
       fn();
     };
