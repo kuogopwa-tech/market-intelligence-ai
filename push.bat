@@ -133,15 +133,21 @@ if %ERRORLEVEL% neq 0 (
 ) else (
     echo [OK] Remote "origin" detected.
     echo.
-    echo [7/7] Pushing to GitHub...
+    echo [7/7] Pushing to GitHub (All Branches and Tags)...
     
-    :: Get current branch name
-    for /f "tokens=*" %%i in ('git rev-parse --abbrev-ref HEAD') do set BRANCH=%%i
+    git push origin --all
+    if !ERRORLEVEL! neq 0 (
+        echo [ERROR] Pushing branches failed.
+    )
     
-    git push origin !BRANCH!
+    git push origin --tags
+    if !ERRORLEVEL! neq 0 (
+        echo [ERROR] Pushing tags failed.
+    )
+
     if !ERRORLEVEL! neq 0 (
         echo.
-        echo [ERROR] Push failed.
+        echo [ERROR] Push process had issues.
         echo Check your internet connection, remote configuration, and ensure you have permission to push.
         pause
         exit /b
