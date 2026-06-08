@@ -162,7 +162,7 @@ export function Layout({ children }: LayoutProps) {
                   </SelectTrigger>
                   <SelectContent>
 
-                    {(Array.isArray(symbols) ? symbols : Array.isArray((symbols as any)?.data) ? (symbols as any).data : []).map((sym) => (
+                    {(Array.isArray(symbols) ? symbols : Array.isArray((symbols as any)?.data) ? (symbols as any).data : []).map((sym: any) => (
                       <SelectItem key={sym.symbol} value={sym.symbol}>
                         {sym.displayName}
                       </SelectItem>
