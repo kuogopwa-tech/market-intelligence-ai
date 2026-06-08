@@ -79,3 +79,13 @@ coverage
 .env 
 .env.local 
 artifacts/api-server/.env 
+node_modules 
+dist 
+build 
+.next 
+coverage 
+.turbo 
+.vercel 
+.env 
+.env.local 
+artifacts/api-server/.env 
