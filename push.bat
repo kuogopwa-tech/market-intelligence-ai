@@ -50,21 +50,29 @@ echo ===================================================
 for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
 set TIMESTAMP=%datetime:~0,4%-%datetime:~4,2%-%datetime:~6,2% %datetime:~8,2%:%datetime:~10,2%:%datetime:~12,2%
 
-set /p msg="Enter commit message (Press Enter for default: 'auto: update %TIMESTAMP%'): "
-
-if "%msg%"=="" (
-    set msg=auto: update %TIMESTAMP%
-)
+set msg=auto: update %TIMESTAMP%
 
 echo.
 echo ===================================================
 echo [4/5] Committing...
 echo ===================================================
-git commit -m "%msg%"
-if %ERRORLEVEL% neq 0 (
-    echo [INFO] Nothing to commit or commit failed.
+git commit -m "%msg%" || echo [INFO] Nothing to commit or commit failed.
+
+echo.
+echo ===================================================
+echo [5/5] Pushing to GitHub...
+echo ===================================================
+echo Pushing to origin main...
+git push origin main
+
+if %ERRORLEVEL% eq 0 (
+    echo.
+    echo [SUCCESS] Push completed successfully to main!
+    for /f "tokens=*" %%h in ('git rev-parse HEAD') do set COMMIT_HASH=%%h
+    echo Current commit: %COMMIT_HASH%
 ) else (
-    echo [OK] Committed: %msg%
+    echo.
+    echo [ERROR] Push failed. Please check your connection or remote settings.
 )
 
 echo.

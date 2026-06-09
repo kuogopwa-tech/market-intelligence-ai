@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "pnpm run build",
-  "outputDirectory": "artifacts/deriv-analyst/dist",
+  "outputDirectory": "artifacts/deriv-analyst/dist/public",
 
   "routes": [
     {
