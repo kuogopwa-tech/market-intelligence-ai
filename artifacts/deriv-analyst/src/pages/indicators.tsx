@@ -10,12 +10,15 @@ import { Progress } from "@/components/ui/progress";
 export default function Indicators() {
   const { selectedSymbol, granularity } = useAppStore();
 
+  const isTickInterval = granularity.endsWith('t');
+  const numericGranularity = isTickInterval ? 60 : parseInt(granularity, 10);
+
   const { data: indicators, isLoading } = useGetSymbolIndicators(
-    { symbol: selectedSymbol, granularity },
+    { symbol: selectedSymbol, granularity: numericGranularity },
     {
       query: {
         enabled: !!selectedSymbol,
-        queryKey: getGetSymbolIndicatorsQueryKey({ symbol: selectedSymbol, granularity }),
+        queryKey: getGetSymbolIndicatorsQueryKey({ symbol: selectedSymbol, granularity: numericGranularity }),
         refetchInterval: 5000
       }
     }

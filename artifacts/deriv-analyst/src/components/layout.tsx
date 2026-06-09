@@ -1,10 +1,11 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useGetMarketSymbols, getGetMarketSymbolsQueryKey, useGetAiStatus, getGetAiStatusQueryKey } from "@workspace/api-client-react";
 import { useAppStore } from "../store";
 import { useSignalAlert } from "../hooks/useSignalAlert";
 import { useAuth } from "../hooks/use-auth";
 import { 
+  Check,
   Activity, 
   BarChart2, 
   BrainCircuit, 
@@ -20,7 +21,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -58,7 +61,14 @@ function AlertMonitor() {
 
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
-  const { selectedSymbol, setSelectedSymbol, granularity, setGranularity } = useAppStore();
+  const { 
+    selectedSymbol, 
+    setSelectedSymbol, 
+    granularity, 
+    setGranularity,
+    theme,
+    setTheme
+  } = useAppStore();
   const { user, logout } = useAuth();
   const isAuthPage = location === "/login" || location === "/register";
 
@@ -76,12 +86,21 @@ export function Layout({ children }: LayoutProps) {
     }
   });
 
+  useEffect(() => {
+    if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
   if (isAuthPage) {
-    return <div className="dark min-h-screen bg-background text-foreground">{children}</div>;
+    const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    return <div className={`${isDark ? 'dark' : ''} min-h-screen bg-background text-foreground`}>{children}</div>;
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground dark">
+    <div className={`flex h-screen w-full overflow-hidden bg-background text-foreground ${theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : ''}`}>
       <AlertMonitor />
 
       {/* Sidebar */}
@@ -173,17 +192,127 @@ export function Layout({ children }: LayoutProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground hidden sm:inline">Interval</span>
-              <Select value={granularity.toString()} onValueChange={(val) => setGranularity(parseInt(val, 10))}>
-                <SelectTrigger className="w-[100px] bg-background border-border">
+              <span className="text-sm text-muted-foreground hidden lg:inline">Interval</span>
+              <Select value={granularity} onValueChange={setGranularity}>
+                <SelectTrigger className="w-[120px] bg-background border-border">
                   <SelectValue placeholder="Interval" />
                 </SelectTrigger>
+                <SelectContent className="max-h-[400px] overflow-y-auto">
+                  <SelectGroup>
+                    <SelectLabel className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ticks</SelectLabel>
+                    {[
+                      { value: "1t", label: "1 Tick" },
+                      { value: "5t", label: "5 Ticks" },
+                      { value: "10t", label: "10 Ticks" },
+                      { value: "25t", label: "25 Ticks" },
+                      { value: "50t", label: "50 Ticks" },
+                      { value: "100t", label: "100 Ticks" },
+                    ].map((item) => (
+                      <SelectItem key={item.value} value={item.value} className="relative flex items-center pr-8">
+                        <span className="flex-1">{item.label}</span>
+                        {granularity === item.value && (
+                          <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+                            <Check className="h-4 w-4 opacity-100" />
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <div className="h-px bg-muted my-1 mx-1" />
+                  <SelectGroup>
+                    <SelectLabel className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Seconds</SelectLabel>
+                    {[
+                      { value: "1", label: "1s" },
+                      { value: "5", label: "5s" },
+                      { value: "10", label: "10s" },
+                      { value: "15", label: "15s" },
+                      { value: "30", label: "30s" },
+                    ].map((item) => (
+                      <SelectItem key={item.value} value={item.value} className="relative flex items-center pr-8">
+                        <span className="flex-1">{item.label}</span>
+                        {granularity === item.value && (
+                          <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+                            <Check className="h-4 w-4 opacity-100" />
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <div className="h-px bg-muted my-1 mx-1" />
+                  <SelectGroup>
+                    <SelectLabel className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Minutes</SelectLabel>
+                    {[
+                      { value: "60", label: "1m" },
+                      { value: "120", label: "2m" },
+                      { value: "180", label: "3m" },
+                      { value: "300", label: "5m" },
+                      { value: "600", label: "10m" },
+                      { value: "900", label: "15m" },
+                      { value: "1800", label: "30m" },
+                    ].map((item) => (
+                      <SelectItem key={item.value} value={item.value} className="relative flex items-center pr-8">
+                        <span className="flex-1">{item.label}</span>
+                        {granularity === item.value && (
+                          <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+                            <Check className="h-4 w-4 opacity-100" />
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <div className="h-px bg-muted my-1 mx-1" />
+                  <SelectGroup>
+                    <SelectLabel className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Hours</SelectLabel>
+                    {[
+                      { value: "3600", label: "1h" },
+                      { value: "7200", label: "2h" },
+                      { value: "14400", label: "4h" },
+                    ].map((item) => (
+                      <SelectItem key={item.value} value={item.value} className="relative flex items-center pr-8">
+                        <span className="flex-1">{item.label}</span>
+                        {granularity === item.value && (
+                          <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+                            <Check className="h-4 w-4 opacity-100" />
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <div className="h-px bg-muted my-1 mx-1" />
+                  <SelectGroup>
+                    <SelectLabel className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">End Time</SelectLabel>
+                    {[
+                      { value: "current", label: "Current" },
+                      { value: "plus5m", label: "+5m" },
+                      { value: "plus15m", label: "+15m" },
+                      { value: "plus30m", label: "+30m" },
+                      { value: "plus1h", label: "+1h" },
+                      { value: "custom", label: "Custom" },
+                    ].map((item) => (
+                      <SelectItem key={item.value} value={item.value} className="relative flex items-center pr-8">
+                        <span className="flex-1">{item.label}</span>
+                        {granularity === item.value && (
+                          <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+                            <Check className="h-4 w-4 opacity-100" />
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground hidden sm:inline">Theme</span>
+              <Select value={theme} onValueChange={(val: any) => setTheme(val)}>
+                <SelectTrigger className="w-[100px] bg-background border-border">
+                  <SelectValue placeholder="Theme" />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="60">1 Min</SelectItem>
-                  <SelectItem value="300">5 Min</SelectItem>
-                  <SelectItem value="900">15 Min</SelectItem>
-                  <SelectItem value="3600">1 Hour</SelectItem>
-                  <SelectItem value="86400">1 Day</SelectItem>
+                  <SelectItem value="light">Light</SelectItem>
+                  <SelectItem value="dark">Dark</SelectItem>
+                  <SelectItem value="system">System</SelectItem>
                 </SelectContent>
               </Select>
             </div>

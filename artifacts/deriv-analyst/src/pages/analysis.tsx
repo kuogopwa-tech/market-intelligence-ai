@@ -63,12 +63,15 @@ export default function Analysis() {
     query: { queryKey: getGetAiStatusQueryKey(), refetchInterval: 30000 },
   });
 
+  const isTickInterval = granularity.endsWith('t');
+  const numericGranularity = isTickInterval ? 60 : parseInt(granularity, 10);
+
   const { data: signals, isLoading: isLoadingSignals } = useGetSignalAnalysis(
-    { symbol: selectedSymbol, granularity },
+    { symbol: selectedSymbol, granularity: numericGranularity },
     {
       query: {
         enabled: !!selectedSymbol,
-        queryKey: getGetSignalAnalysisQueryKey({ symbol: selectedSymbol, granularity }),
+        queryKey: getGetSignalAnalysisQueryKey({ symbol: selectedSymbol, granularity: numericGranularity }),
         refetchInterval: 15000,
       },
     }
@@ -96,7 +99,7 @@ export default function Analysis() {
             queryKey: getGetLatestAnalysisQueryKey({ symbol: selectedSymbol }),
           });
           queryClient.invalidateQueries({
-            queryKey: getGetSignalAnalysisQueryKey({ symbol: selectedSymbol, granularity }),
+            queryKey: getGetSignalAnalysisQueryKey({ symbol: selectedSymbol, granularity: numericGranularity }),
           });
         },
       }

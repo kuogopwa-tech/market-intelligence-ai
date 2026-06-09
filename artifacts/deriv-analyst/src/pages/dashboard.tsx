@@ -5,6 +5,8 @@ import {
   getGetMarketSummaryQueryKey,
   useGetCandles,
   getGetCandlesQueryKey,
+  useGetRecentTicks,
+  getGetRecentTicksQueryKey,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +21,10 @@ export default function Dashboard() {
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
 
+  const isTickInterval = granularity.endsWith('t');
+  const tickCount = isTickInterval ? parseInt(granularity.replace('t', ''), 10) : 0;
+  const numericGranularity = isTickInterval ? 60 : parseInt(granularity, 10);
+
   const { data: summary, isLoading: isLoadingSummary } = useGetMarketSummary(
     { symbol: selectedSymbol },
     { 
@@ -31,12 +37,23 @@ export default function Dashboard() {
   );
 
   const { data: candles } = useGetCandles(
-    { symbol: selectedSymbol, granularity, count: 100 },
+    { symbol: selectedSymbol, granularity: numericGranularity, count: 100 },
     {
       query: {
-        enabled: !!selectedSymbol,
-        queryKey: getGetCandlesQueryKey({ symbol: selectedSymbol, granularity, count: 100 }),
+        enabled: !!selectedSymbol && !isTickInterval,
+        queryKey: getGetCandlesQueryKey({ symbol: selectedSymbol, granularity: numericGranularity, count: 100 }),
         refetchInterval: 60000
+      }
+    }
+  );
+
+  const { data: recentTicks } = useGetRecentTicks(
+    { symbol: selectedSymbol, count: 100 },
+    {
+      query: {
+        enabled: !!selectedSymbol && isTickInterval,
+        queryKey: getGetRecentTicksQueryKey({ symbol: selectedSymbol, count: 100 }),
+        refetchInterval: 2000
       }
     }
   );
@@ -55,7 +72,7 @@ export default function Dashboard() {
       },
       timeScale: {
         timeVisible: true,
-        secondsVisible: false,
+        secondsVisible: isTickInterval,
       },
       rightPriceScale: {
         borderVisible: false,
@@ -82,6 +99,21 @@ export default function Dashboard() {
   useEffect(() => {
     if (!seriesRef.current) return;
 
+    if (isTickInterval) {
+      if (!recentTicks || recentTicks.length === 0) return;
+      
+      const formattedData = recentTicks.map((t: any) => ({
+        time: t.epoch as any,
+        open: t.price,
+        high: t.price,
+        low: t.price,
+        close: t.price,
+      }));
+      seriesRef.current.setData(formattedData);
+      chartRef.current?.timeScale().fitContent();
+      return;
+    }
+
     const candleRows = Array.isArray(candles)
       ? candles
       : Array.isArray((candles as any)?.data)
@@ -101,7 +133,7 @@ export default function Dashboard() {
     }));
     seriesRef.current.setData(formattedData);
     chartRef.current?.timeScale().fitContent();
-  }, [candles]);
+  }, [candles, recentTicks, isTickInterval]);
 
   const renderTrendIcon = (trend?: string) => {
     if (trend === 'bullish') return <TrendingUp className="h-4 w-4 text-green-500" />;

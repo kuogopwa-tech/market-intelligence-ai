@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAppStore } from "../store";
 import {
   useGetAnalyticsOverview,
   getGetAnalyticsOverviewQueryKey,
@@ -542,8 +543,13 @@ function RhythmChart({ profiles }: { profiles: SymbolProfile[] }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Analytics() {
+  const { selectedSymbol: storeSymbol, granularity: storeGranularity } = useAppStore();
   const [selectedSymbol, setSelectedSymbol] = useState<string>("R_100");
   const [activeTab, setActiveTab] = useState<"profiles" | "evolution" | "heatmap" | "rhythm" | "intel_timing" | "intel_events">("profiles");
+
+  const intervalValue = storeGranularity || "60";
+  const isTickInterval = intervalValue.endsWith('t');
+  const numericGranularity = isTickInterval ? 60 : parseInt(intervalValue, 10);
 
   const { data: overview, isLoading: overviewLoading, isFetching, refetch } = useGetAnalyticsOverview({
     query: {
@@ -579,10 +585,10 @@ export default function Analytics() {
 
   // Also trigger a scan if no data yet
   const { refetch: runScan, isFetching: isScanning } = useGetScannerResults(
-    { granularity: 60 },
+    { granularity: numericGranularity },
     {
       query: {
-        queryKey: getGetScannerResultsQueryKey({ granularity: 60 }),
+        queryKey: getGetScannerResultsQueryKey({ granularity: numericGranularity }),
         enabled: false,
       },
     }

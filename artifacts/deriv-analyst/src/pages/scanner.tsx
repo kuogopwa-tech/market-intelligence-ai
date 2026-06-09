@@ -20,6 +20,8 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "../store";
+import { Check } from "lucide-react";
 
 // ─── Priority styling ────────────────────────────────────────────────────────
 
@@ -565,13 +567,17 @@ function MarketMatrix({ results }: { results: SymbolScanResult[] }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Scanner() {
+  const { granularity } = useAppStore();
   const [autoRefresh, setAutoRefresh] = useState(true);
 
+  const isTickInterval = granularity.endsWith('t');
+  const numericGranularity = isTickInterval ? 60 : parseInt(granularity, 10);
+
   const { data, isLoading, isFetching, dataUpdatedAt, refetch } = useGetScannerResults(
-    { granularity: 60 },
+    { granularity: numericGranularity },
     {
       query: {
-        queryKey: getGetScannerResultsQueryKey({ granularity: 60 }),
+        queryKey: getGetScannerResultsQueryKey({ granularity: numericGranularity }),
         refetchInterval: autoRefresh ? 25000 : false,
         staleTime: 10000,
       },
