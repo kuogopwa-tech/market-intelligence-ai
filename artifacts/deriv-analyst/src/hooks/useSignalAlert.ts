@@ -62,11 +62,15 @@ export function useSignalAlert() {
   const prevConfidence = useRef<number>(0);
   const alerted = useRef<Map<string, number>>(new Map());
 
+  const intervalValue = granularity || "60";
+  const isTickInterval = intervalValue.endsWith('t');
+  const numericGranularity = isTickInterval ? 60 : parseInt(intervalValue, 10);
+
   const { data: quality } = useGetSignalQuality(
-    { symbol: selectedSymbol, granularity },
+    { symbol: selectedSymbol, granularity: numericGranularity },
     {
       query: {
-        queryKey: getGetSignalQualityQueryKey({ symbol: selectedSymbol, granularity }),
+        queryKey: getGetSignalQualityQueryKey({ symbol: selectedSymbol, granularity: numericGranularity }),
         refetchInterval: POLL_INTERVAL_MS,
         enabled: !!selectedSymbol,
       },

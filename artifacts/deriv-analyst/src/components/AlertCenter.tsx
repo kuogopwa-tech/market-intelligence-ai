@@ -130,11 +130,15 @@ export function AlertCenter() {
   const { selectedSymbol, granularity, alertFeed, clearAlerts } = useAppStore();
   const [, navigate] = useLocation();
 
+  const intervalValue = granularity || "60";
+  const isTickInterval = intervalValue.endsWith('t');
+  const numericGranularity = isTickInterval ? 60 : parseInt(intervalValue, 10);
+
   const { data: quality, isLoading } = useGetSignalQuality(
-    { symbol: selectedSymbol, granularity },
+    { symbol: selectedSymbol, granularity: numericGranularity },
     {
       query: {
-        queryKey: getGetSignalQualityQueryKey({ symbol: selectedSymbol, granularity }),
+        queryKey: getGetSignalQualityQueryKey({ symbol: selectedSymbol, granularity: numericGranularity }),
         refetchInterval: 15_000,
         enabled: !!selectedSymbol,
       },
