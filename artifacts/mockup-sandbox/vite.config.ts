@@ -9,6 +9,8 @@ const rawPort = process.env.PORT || "5173";
 const port = Number(rawPort);
 const basePath = process.env.BASE_PATH || "/";
 
+const isDev = process.env.NODE_ENV !== "production";
+
 export default defineConfig({
   base: basePath,
   plugins: [
@@ -16,8 +18,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
+    ...(isDev && process.env.REPL_ID !== undefined
       ? [
           await import("@replit/vite-plugin-cartographer").then((m) =>
             m.cartographer({
@@ -38,7 +39,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port,
+    port: isDev ? port : undefined,
     host: "0.0.0.0",
     allowedHosts: true,
     fs: {
