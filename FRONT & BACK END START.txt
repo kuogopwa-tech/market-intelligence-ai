@@ -10,4 +10,6 @@ pnpm --filter "./artifacts/api-server" dev
 
 DB READ
 
+$env:PORT="5173"
+$env:BASE_PATH="/"
 pnpm --filter "@workspace/db" exec drizzle-kit studio
