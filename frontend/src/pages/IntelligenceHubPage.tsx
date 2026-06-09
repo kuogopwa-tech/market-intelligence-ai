@@ -50,7 +50,7 @@ export default function IntelligenceHubPage() {
       try {
         setEvolutionLoading(true);
         setEvolutionError(null);
-        const res = await fetch(`http://localhost:3000/api/intelligence/evolution/${symbol}?limit=20`);
+        const res = await fetch(`/api/intelligence/evolution/${symbol}?limit=20`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as EvolutionResponse;
         setEvolution(data);
