@@ -1,6 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: Ensure we are in the project root
+cd /d "%~dp0"
+
 echo ===================================================
 echo [1/5] Checking Environment...
 echo ===================================================
@@ -14,6 +17,15 @@ if %ERRORLEVEL% neq 0 (
 
 if not exist ".git" (
     echo [ERROR] This is not a Git repository.
+    pause
+    exit /b
+)
+
+:: Verify GitHub remote exists
+git remote get-url origin >nul 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] GitHub remote 'origin' is missing.
+    echo Please add it using: git remote add origin ^<url^>
     pause
     exit /b
 )
@@ -33,10 +45,15 @@ echo.
 echo ===================================================
 echo [3/5] Commit Message...
 echo ===================================================
-set /p msg="Enter commit message (Press Enter for default: 'auto: update project'): "
+
+:: Generate timestamp
+for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
+set TIMESTAMP=%datetime:~0,4%-%datetime:~4,2%-%datetime:~6,2% %datetime:~8,2%:%datetime:~10,2%:%datetime:~12,2%
+
+set /p msg="Enter commit message (Press Enter for default: 'auto: update %TIMESTAMP%'): "
 
 if "%msg%"=="" (
-    set msg=auto: update project
+    set msg=auto: update %TIMESTAMP%
 )
 
 echo.
