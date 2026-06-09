@@ -39,7 +39,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: isDev ? port : undefined,
+    port,
     host: "0.0.0.0",
     allowedHosts: true,
     fs: {
