@@ -1,4 +1,4 @@
-import { db } from "@workspace/db";
+import { db, checkDbConnection } from "@workspace/db";
 import {
   learningMemoryTable,
   symbolTimelineTable,
@@ -194,6 +194,16 @@ export function getSchedulerStatus() {
 export async function runBackgroundScan(): Promise<void> {
   if (scanLock) {
     logger.warn("Background scan skipped — previous scan still running");
+    return;
+  }
+
+  // Double check DB connection before starting.
+  // If DB is offline, we skip the scan to avoid spamming connection errors.
+  const isDbOnline = await checkDbConnection();
+  if (!isDbOnline) {
+    logger.warn("Background scan skipped — Database is DISCONNECTED");
+    state.lastError = "Database disconnected";
+    state.nextScanAt = Date.now() + SCAN_INTERVAL_MS;
     return;
   }
 

@@ -11,30 +11,26 @@ const INITIAL_RETRY_DELAY_MS = 500;
 
 function getGeminiApiKey() {
   const key = process.env.GEMINI_API_KEY;
-  if (!key) {
-    logger.warn("Gemini key check: NOT FOUND");
-    throw new Error("GEMINI_API_KEY missing");
-  }
-  
-  // Safe logging
-  const keyStr = String(key);
-  const prefix = keyStr.substring(0, 4);
-  const length = keyStr.length;
-  logger.info({ keyExists: true, prefix: `${prefix}...`, length }, "Gemini key detected at runtime");
-  
-  if (!keyStr.startsWith("AIza")) {
-    logger.warn({ prefix }, "CAUTION: Gemini key does not start with 'AIza'. This key might be from Google Cloud Console instead of AI Studio and may NOT work with this SDK.");
+  const isPlaceholder = !key || 
+    key === "your_gemini_api_key_here" || 
+    key === "your-key" || 
+    key === "example" || 
+    key === "empty";
+
+  if (isPlaceholder) {
+    return null;
   }
   
   return key;
 }
 
 function getAiModel() {
-  return process.env.AI_MODEL ?? "gemini-2.5-flash";
+  return process.env.AI_MODEL ?? "gemini-2.0-flash";
 }
 
-function getGeminiClient(): GoogleGenerativeAI {
+function getGeminiClient(): GoogleGenerativeAI | null {
   const key = getGeminiApiKey();
+  if (!key) return null;
   return new GoogleGenerativeAI(key);
 }
 
@@ -73,6 +69,15 @@ export async function checkAiOnline(): Promise<{
   const aiModel = getAiModel();
   try {
     const client = getGeminiClient();
+    if (!client) {
+      return {
+        online: false,
+        model: aiModel,
+        provider: "gemini",
+        responseTimeMs: null,
+        error: "Invalid or missing API key",
+      };
+    }
     const model = client.getGenerativeModel({ model: aiModel });
 
     // Perform a lightweight health check with countTokens
@@ -107,6 +112,8 @@ async function queryAi(prompt: string): Promise<string> {
     const startTime = Date.now();
     try {
       const client = getGeminiClient();
+      if (!client) throw new Error("GEMINI_API_KEY is not configured correctly");
+      
       const model = client.getGenerativeModel({
         model: aiModel,
         generationConfig: {
