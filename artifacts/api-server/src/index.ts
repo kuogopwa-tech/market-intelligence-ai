@@ -14,7 +14,7 @@ import { JWT_SECRET } from "./lib/config"; // Ensure secret is validated on star
 import { checkDbConnection } from "@workspace/db";
 import { checkAiOnline } from "./lib/aiService";
 
-const port = Number(process.env.PORT || "5173");
+const port = Number(process.env.PORT || "3000");
 
 const isVercel = process.env.VERCEL === "1" || !!process.env.NOW_REGION;
 
