@@ -8,5 +8,8 @@ console.log("GEMINI KEY LOADED (VERCEL):", {
 });
 
 import app from "../artifacts/api-server/src/app";
+import { logger } from "../artifacts/api-server/src/lib/logger";
+
+logger.info("Serverless API entry point initialized");
 
 export default app;

@@ -3,12 +3,6 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "artifacts/deriv-analyst/dist",
 
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api"
-    }
-  ],
   "routes": [
     {
       "src": "/api/(.*)",
@@ -27,8 +21,14 @@
       "dest": "/robots.txt"
     },
     {
-      "src": "/(.*)",
+      "src": "/((?!api/).*)",
       "dest": "/index.html"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api"
     }
   ],
   "headers": [
