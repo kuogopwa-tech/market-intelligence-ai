@@ -553,7 +553,7 @@ export default function Intelligence() {
   const { selectedSymbol } = useAppStore();
   // Use a dedicated API base for network calls. Vite can set `VITE_API_BASE` in dev/preview,
   // otherwise fall back to an empty string which makes requests relative (and proxied).
-  const API_BASE = ((import.meta.env.VITE_API_BASE as string) ?? "").replace(/\/$/, "");
+  const API_BASE = (import.meta.env.VITE_API_BASE as string || "").replace(/\/$/, "");
 
   const [status, setStatus] = useState<IntelligenceStatus | null>(null);
   const [timingModel, setTimingModel] = useState<TimingModelResponse | null>(null);
