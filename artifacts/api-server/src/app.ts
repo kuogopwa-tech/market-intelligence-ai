@@ -8,7 +8,7 @@ import { authenticate } from "./middleware/auth.js";
 const app: Express = express();
 
 app.use(
-  pinoHttp({
+  (pinoHttp as any)({
     logger,
     serializers: {
       req(req: any) {

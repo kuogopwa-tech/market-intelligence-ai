@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts"
+    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" },
+    "./schema": { "import": "./dist/schema/index.js", "types": "./dist/schema/index.d.ts" }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
   },
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "dependencies": {
     "dotenv": "^16.4.5",
     "drizzle-orm": "catalog:",
