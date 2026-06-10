@@ -1,19 +1,8 @@
 {
-  "version": 2,
-  "buildCommand": "pnpm --filter \"@workspace/deriv-analyst\" run build",
+  "framework": null,
+  "buildCommand": "pnpm run build",
   "outputDirectory": "artifacts/deriv-analyst/dist/public",
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.ts"
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+  "installCommand": "pnpm install",
+  "devCommand": "pnpm --filter \"./artifacts/deriv-analyst\" dev",
+  "nodeVersion": "20.x"
 }
