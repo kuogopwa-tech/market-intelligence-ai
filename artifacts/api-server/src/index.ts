@@ -7,12 +7,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 config({ path: path.resolve(__dirname, "../.env") });
 
-import app from "./app.js.js";
-import { logger } from "./lib/logger.js.js";
-import { startBackgroundScanner } from "./lib/backgroundScanner.js.js";
-import { JWT_SECRET } from "./lib/config.js.js"; // Ensure secret is validated on startup
+import app from "./app.js";
+import { logger } from "./lib/logger.js";
+import { startBackgroundScanner } from "./lib/backgroundScanner.js";
+import { JWT_SECRET } from "./lib/config.js"; // Ensure secret is validated on startup
 import { checkDbConnection } from "@workspace/db";
-import { checkAiOnline } from "./lib/aiService.js.js";
+import { checkAiOnline } from "./lib/aiService.js";
 
 // port will be determined at runtime for local development only
 

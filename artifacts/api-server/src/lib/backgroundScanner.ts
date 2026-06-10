@@ -6,14 +6,14 @@ import {
   scanRunsTable,
 } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
-import { SUPPORTED_SYMBOLS, getCandles } from "./derivWs.js.js";
-import { calculateAllIndicators } from "./indicators.js.js";
-import { mergeSignals, computeSignalQuality } from "./signalEngine.js.js";
-import { classifyIndicatorPattern, computePatternStats } from "./patternEngine.js.js";
-import { runAggregation } from "./aggregationEngine.js.js";
-import { detectEvolution } from "./evolutionEngine.js.js";
-import { refreshSymbolPersonality } from "./personalityRefresher.js.js";
-import { logger } from "./logger.js.js";
+import { SUPPORTED_SYMBOLS, getCandles } from "./derivWs.js";
+import { calculateAllIndicators } from "./indicators.js";
+import { mergeSignals, computeSignalQuality } from "./signalEngine.js";
+import { classifyIndicatorPattern, computePatternStats } from "./patternEngine.js";
+import { runAggregation } from "./aggregationEngine.js";
+import { detectEvolution } from "./evolutionEngine.js";
+import { refreshSymbolPersonality } from "./personalityRefresher.js";
+import { logger } from "./logger.js";
 
 const SCAN_INTERVAL_MS = parseInt(
   process.env["SCAN_INTERVAL_MS"] ?? "300000",

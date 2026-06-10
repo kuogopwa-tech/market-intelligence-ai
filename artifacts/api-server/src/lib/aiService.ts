@@ -1,7 +1,7 @@
-﻿import { logger } from "./logger.js.js";
-import type { IndicatorSet } from "./indicators.js.js";
-import { detectMarketCondition } from "./indicators.js.js";
-import { mergeSignals, type SignalResult } from "./signalEngine.js.js";
+﻿import { logger } from "./logger.js";
+import type { IndicatorSet } from "./indicators.js";
+import { detectMarketCondition } from "./indicators.js";
+import { mergeSignals, type SignalResult } from "./signalEngine.js";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;

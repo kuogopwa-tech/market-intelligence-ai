@@ -1,7 +1,7 @@
 ﻿import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { logger } from "../lib/logger.js.js";
-import { JWT_SECRET } from "../lib/config.js.js";
+import { logger } from "../lib/logger.js";
+import { JWT_SECRET } from "../lib/config.js";
 
 export interface AuthUser {
   id: string;
