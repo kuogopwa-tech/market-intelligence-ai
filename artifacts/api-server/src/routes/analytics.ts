@@ -4,7 +4,7 @@ import { symbolTimelineTable } from "@workspace/db";
 import { eq, gte, desc, asc } from "drizzle-orm";
 import { SUPPORTED_SYMBOLS } from "../lib/derivWs";
 
-const router = Router();
+const router: Router = Router();
 
 // ─── Personality derivation ───────────────────────────────────────────────────
 

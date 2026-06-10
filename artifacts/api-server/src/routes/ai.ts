@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { checkAiOnline } from "../lib/aiService";
 
-const router = Router();
+const router: Router = Router();
 
 router.get("/ai/status", async (_req, res) => {
   const status = await checkAiOnline();

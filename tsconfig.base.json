@@ -3,7 +3,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
+    "allowImportingTsExtensions": false,
     "noEmit": true,
     "isolatedModules": true,
     "lib": ["es2022", "dom", "dom.iterable"],

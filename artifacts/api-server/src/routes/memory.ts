@@ -4,7 +4,7 @@ import { learningMemoryTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { computePatternStats, generateLessons } from "../lib/patternEngine";
 
-const router = Router();
+const router: Router = Router();
 
 router.get("/memory", async (req, res) => {
   const symbol = req.query.symbol ? String(req.query.symbol) : undefined;

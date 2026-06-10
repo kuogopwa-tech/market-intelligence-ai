@@ -8,7 +8,7 @@ import { calculateAllIndicators } from "../lib/indicators";
 import { mergeSignals } from "../lib/signalEngine";
 import { classifyIndicatorPattern } from "../lib/patternEngine";
 
-const router = Router();
+const router: Router = Router();
 
 function formatPrediction(r: typeof predictionsTable.$inferSelect) {
   return {

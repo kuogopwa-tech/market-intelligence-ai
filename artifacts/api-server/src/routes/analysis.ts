@@ -10,7 +10,7 @@ import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEng
 import { learningMemoryTable } from "@workspace/db";
 import { GenerateAnalysisBody } from "@workspace/api-zod";
 
-const router = Router();
+const router: Router = Router();
 
 async function getMemoryContext(symbol: string): Promise<string> {
   try {

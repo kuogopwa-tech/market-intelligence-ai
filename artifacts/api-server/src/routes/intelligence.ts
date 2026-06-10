@@ -12,7 +12,7 @@ import { getSchedulerStatus } from "../lib/backgroundScanner";
 import { getTimingModel } from "../lib/timingModel";
 import { SUPPORTED_SYMBOLS } from "../lib/derivWs";
 
-const router = Router();
+const router: Router = Router();
 
 // ── GET /intelligence/status ──────────────────────────────────────────────────
 

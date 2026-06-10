@@ -8,7 +8,7 @@ import { mergeSignals, computeSignalQuality } from "../lib/signalEngine";
 import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine";
 import { runBackgroundScan, getSchedulerStatus } from "../lib/backgroundScanner";
 
-const router = Router();
+const router: Router = Router();
 
 const PRIORITY_ORDER = [
   "Elite Opportunity",

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getCandles } from "../lib/derivWs";
 import { calculateAllIndicators } from "../lib/indicators";
 
-const router = Router();
+const router: Router = Router();
 
 router.get("/indicators", async (req, res) => {
   const symbol = String(req.query.symbol ?? "R_100");

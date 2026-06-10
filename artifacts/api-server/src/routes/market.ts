@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getCandles, getTicks, getLatestPrice, SUPPORTED_SYMBOLS } from "../lib/derivWs";
 import { calculateAllIndicators, detectMarketCondition } from "../lib/indicators";
 
-const router = Router();
+const router: Router = Router();
 
 router.get("/market/symbols", (_req, res) => {
   res.json(SUPPORTED_SYMBOLS);

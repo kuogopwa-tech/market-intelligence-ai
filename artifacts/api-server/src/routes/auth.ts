@@ -7,7 +7,7 @@ import { logger } from "../lib/logger";
 import { requireAuth } from "../middleware/auth";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../lib/config";
 
-const router = Router();
+const router: Router = Router();
 
 router.post("/register", async (req, res) => {
   const { email, password } = req.body;
