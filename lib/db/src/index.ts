@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
@@ -31,3 +31,4 @@ export async function checkDbConnection(): Promise<boolean> {
 }
 
 export * from "./schema";
+

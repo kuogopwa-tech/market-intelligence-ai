@@ -1,7 +1,7 @@
-import { logger } from "./logger";
-import type { IndicatorSet } from "./indicators";
-import { detectMarketCondition } from "./indicators";
-import { mergeSignals, type SignalResult } from "./signalEngine";
+﻿import { logger } from "./logger.js.js";
+import type { IndicatorSet } from "./indicators.js.js";
+import { detectMarketCondition } from "./indicators.js.js";
+import { mergeSignals, type SignalResult } from "./signalEngine.js.js";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -228,7 +228,7 @@ SIGNAL ENGINE RESULTS:
 Market State: ${signals.marketState}
 Bullish Score: ${signals.bullishScore}/100 | Bearish Score: ${signals.bearishScore}/100
 Confidence: ${signals.confidence}% | Risk Level: ${signals.riskLevel}
-No-Trade Zone: ${signals.noTradeZone ? "YES — signals too conflicting" : "No"}
+No-Trade Zone: ${signals.noTradeZone ? "YES â€” signals too conflicting" : "No"}
 
 Key Signals:
 ${signalSummary || "  No clear signals detected"}
@@ -297,14 +297,14 @@ function buildRuleBasedReasoning(
   if (rsi !== null) {
     if (rsi > 70) {
       lines.push(
-        `RSI at ${rsi.toFixed(1)} is in overbought territory — upward momentum may be exhausting.`
+        `RSI at ${rsi.toFixed(1)} is in overbought territory â€” upward momentum may be exhausting.`
       );
     } else if (rsi < 30) {
       lines.push(
-        `RSI at ${rsi.toFixed(1)} is in oversold territory — selling pressure may be nearing exhaustion.`
+        `RSI at ${rsi.toFixed(1)} is in oversold territory â€” selling pressure may be nearing exhaustion.`
       );
     } else {
-      lines.push(`RSI at ${rsi.toFixed(1)} remains in neutral zone — no extreme momentum.`);
+      lines.push(`RSI at ${rsi.toFixed(1)} remains in neutral zone â€” no extreme momentum.`);
     }
   }
 
@@ -325,7 +325,7 @@ function buildRuleBasedReasoning(
   if (signals.noTradeZone) {
     lines.push("");
     lines.push(
-      "Market conditions are unclear — conflicting signals present. Avoid directional bias until conditions clarify."
+      "Market conditions are unclear â€” conflicting signals present. Avoid directional bias until conditions clarify."
     );
   }
 
@@ -341,10 +341,10 @@ function ruleBasedAnalysis(
   const allSignals: string[] = [...signals.supportingSignals];
   const warnings: string[] = [...signals.conflictingSignals];
 
-  if (cond.spikeDetected) warnings.push("High volatility spike detected — dangerous entry conditions");
-  if (cond.reversalWarning) warnings.push("Reversal warning — monitor closely for direction change");
+  if (cond.spikeDetected) warnings.push("High volatility spike detected â€” dangerous entry conditions");
+  if (cond.reversalWarning) warnings.push("Reversal warning â€” monitor closely for direction change");
   if (signals.noTradeZone)
-    warnings.push("No-trade zone — confidence too low for reliable directional prediction");
+    warnings.push("No-trade zone â€” confidence too low for reliable directional prediction");
 
   const rise = signals.noTradeZone
     ? 50
@@ -386,7 +386,7 @@ export async function generateAnalysis(
 
   const aiStatus = await checkAiOnline();
   if (!aiStatus.online) {
-    logger.info({ symbol }, "AI offline — using enhanced rule-based analysis");
+    logger.info({ symbol }, "AI offline â€” using enhanced rule-based analysis");
     const result = ruleBasedAnalysis(symbol, indicators, signals);
     analysisCache.set(cacheKey, { result, ts: Date.now() });
     return result;
@@ -441,9 +441,10 @@ export async function generateAnalysis(
     analysisCache.set(cacheKey, { result, ts: Date.now() });
     return result;
   } catch (err) {
-    logger.warn({ err, symbol }, "AI query failed — falling back to rule-based");
+    logger.warn({ err, symbol }, "AI query failed â€” falling back to rule-based");
     const result = ruleBasedAnalysis(symbol, indicators, signals);
     analysisCache.set(cacheKey, { result, ts: Date.now() });
     return result;
   }
 }
+

@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from "express";
+﻿import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { logger } from "../lib/logger";
-import { JWT_SECRET } from "../lib/config";
+import { logger } from "../lib/logger.js.js";
+import { JWT_SECRET } from "../lib/config.js.js";
 
 export interface AuthUser {
   id: string;
@@ -51,3 +51,4 @@ export const requireAdmin = () => (req: Request, res: Response, next: NextFuncti
   }
   next();
 };
+

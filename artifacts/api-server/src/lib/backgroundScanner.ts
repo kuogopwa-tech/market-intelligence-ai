@@ -1,4 +1,4 @@
-import { db, checkDbConnection } from "@workspace/db";
+﻿import { db, checkDbConnection } from "@workspace/db";
 import {
   learningMemoryTable,
   symbolTimelineTable,
@@ -6,14 +6,14 @@ import {
   scanRunsTable,
 } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
-import { SUPPORTED_SYMBOLS, getCandles } from "./derivWs";
-import { calculateAllIndicators } from "./indicators";
-import { mergeSignals, computeSignalQuality } from "./signalEngine";
-import { classifyIndicatorPattern, computePatternStats } from "./patternEngine";
-import { runAggregation } from "./aggregationEngine";
-import { detectEvolution } from "./evolutionEngine";
-import { refreshSymbolPersonality } from "./personalityRefresher";
-import { logger } from "./logger";
+import { SUPPORTED_SYMBOLS, getCandles } from "./derivWs.js.js";
+import { calculateAllIndicators } from "./indicators.js.js";
+import { mergeSignals, computeSignalQuality } from "./signalEngine.js.js";
+import { classifyIndicatorPattern, computePatternStats } from "./patternEngine.js.js";
+import { runAggregation } from "./aggregationEngine.js.js";
+import { detectEvolution } from "./evolutionEngine.js.js";
+import { refreshSymbolPersonality } from "./personalityRefresher.js.js";
+import { logger } from "./logger.js.js";
 
 const SCAN_INTERVAL_MS = parseInt(
   process.env["SCAN_INTERVAL_MS"] ?? "300000",
@@ -52,7 +52,7 @@ function classifyPriority(
   return "Watchlist Only";
 }
 
-// ── Shared scan logic (also used by the scanner route) ────────────────────────
+// â”€â”€ Shared scan logic (also used by the scanner route) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type SymbolScanResult = {
   symbol: string;
@@ -154,7 +154,7 @@ export async function scanSymbol(
   }
 }
 
-// ── Scheduler state (in-memory) ────────────────────────────────────────────────
+// â”€â”€ Scheduler state (in-memory) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SchedulerState {
   running: boolean;
@@ -189,11 +189,11 @@ export function getSchedulerStatus() {
   };
 }
 
-// ── Full background scan run ───────────────────────────────────────────────────
+// â”€â”€ Full background scan run â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function runBackgroundScan(): Promise<void> {
   if (scanLock) {
-    logger.warn("Background scan skipped — previous scan still running");
+    logger.warn("Background scan skipped â€” previous scan still running");
     return;
   }
 
@@ -201,7 +201,7 @@ export async function runBackgroundScan(): Promise<void> {
   // If DB is offline, we skip the scan to avoid spamming connection errors.
   const isDbOnline = await checkDbConnection();
   if (!isDbOnline) {
-    logger.warn("Background scan skipped — Database is DISCONNECTED");
+    logger.warn("Background scan skipped â€” Database is DISCONNECTED");
     state.lastError = "Database disconnected";
     state.nextScanAt = Date.now() + SCAN_INTERVAL_MS;
     return;
@@ -216,7 +216,7 @@ export async function runBackgroundScan(): Promise<void> {
   let failed = 0;
 
   try {
-    // Insert scan_run record — inside try so failures are caught and lock released.
+    // Insert scan_run record â€” inside try so failures are caught and lock released.
     const [runRow] = await db
       .insert(scanRunsTable)
       .values({ triggeredBy: "scheduler" })
@@ -227,7 +227,7 @@ export async function runBackgroundScan(): Promise<void> {
     const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
     const skipAnalytics = heapMb > MAX_HEAP_MB;
     if (skipAnalytics) {
-      logger.warn({ heapMb }, "Heap usage high — skipping analytics refresh this cycle");
+      logger.warn({ heapMb }, "Heap usage high â€” skipping analytics refresh this cycle");
     }
 
     const allMemory = await db
@@ -385,13 +385,13 @@ export async function runBackgroundScan(): Promise<void> {
         .catch(() => {});
     }
   } finally {
-    // Always release lock — even if the initial scan_run insert failed.
+    // Always release lock â€” even if the initial scan_run insert failed.
     scanLock = false;
     state.currentScanRunId = null;
   }
 }
 
-// ── Public: start / stop ───────────────────────────────────────────────────────
+// â”€â”€ Public: start / stop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function startBackgroundScanner(): void {
   if (intervalHandle !== null) return;
@@ -428,3 +428,4 @@ export function stopBackgroundScanner(): void {
   state.running = false;
   logger.info("Background scanner stopped");
 }
+

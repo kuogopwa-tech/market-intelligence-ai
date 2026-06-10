@@ -2,8 +2,8 @@
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
-import { logger } from "./lib/logger";
-import { authenticate } from "./middleware/auth";
+import { logger } from "./lib/logger.js.js";
+import { authenticate } from "./middleware/auth.js.js";
 
 const app: Express = express();
 
@@ -63,3 +63,4 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 export default app;
+

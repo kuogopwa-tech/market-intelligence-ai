@@ -1,4 +1,4 @@
-import { config } from "dotenv";
+﻿import { config } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,12 +7,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 config({ path: path.resolve(__dirname, "../.env") });
 
-import app from "./app";
-import { logger } from "./lib/logger";
-import { startBackgroundScanner } from "./lib/backgroundScanner";
-import { JWT_SECRET } from "./lib/config"; // Ensure secret is validated on startup
+import app from "./app.js.js";
+import { logger } from "./lib/logger.js.js";
+import { startBackgroundScanner } from "./lib/backgroundScanner.js.js";
+import { JWT_SECRET } from "./lib/config.js.js"; // Ensure secret is validated on startup
 import { checkDbConnection } from "@workspace/db";
-import { checkAiOnline } from "./lib/aiService";
+import { checkAiOnline } from "./lib/aiService.js.js";
 
 // port will be determined at runtime for local development only
 
@@ -51,3 +51,4 @@ if (process.env.NODE_ENV !== "production") {
 } else {
   logger.info("Running in Vercel environment, skipping app.listen() and background scanner");
 }
+

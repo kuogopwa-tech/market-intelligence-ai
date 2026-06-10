@@ -1,7 +1,7 @@
 ﻿{
   "compilerOptions": {
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "allowImportingTsExtensions": false,
     "noEmit": true,
@@ -22,8 +22,6 @@
     "alwaysStrict": true,
     "skipLibCheck": true,
     "target": "es2022",
-    "types": ["node"],
-    "customConditions": ["workspace"]
+    "types": ["node"]
   }
 }
-
