@@ -47,7 +47,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   }
 
   // First API request: dynamically import and mount the router
-  import("./routes")
+  import("./routes.js")
     .then((mod) => {
       apiRouter = mod.default;
       // Mount for future requests
