@@ -1,5 +1,5 @@
-import type { IndicatorSet } from "./indicators";
-import { detectMarketCondition } from "./indicators";
+﻿import type { IndicatorSet } from "./indicators.js";
+import { detectMarketCondition } from "./indicators.js";
 
 export type MarketState =
   | "Strong Bullish"
@@ -73,22 +73,22 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
   let bullishPoints = 0;
   let bearishPoints = 0;
 
-  // RSI — weight 20
+  // RSI â€” weight 20
   if (rsi !== null) {
     if (rsi > 75) {
       bearishPoints += 20;
-      supportingSignals.push(`RSI ${rsi.toFixed(1)} — strongly overbought, reversal pressure`);
+      supportingSignals.push(`RSI ${rsi.toFixed(1)} â€” strongly overbought, reversal pressure`);
     } else if (rsi > 60) {
       bullishPoints += 15;
-      supportingSignals.push(`RSI ${rsi.toFixed(1)} — bullish momentum`);
+      supportingSignals.push(`RSI ${rsi.toFixed(1)} â€” bullish momentum`);
     } else if (rsi > 50) {
       bullishPoints += 8;
     } else if (rsi < 25) {
       bullishPoints += 20;
-      supportingSignals.push(`RSI ${rsi.toFixed(1)} — strongly oversold, bounce potential`);
+      supportingSignals.push(`RSI ${rsi.toFixed(1)} â€” strongly oversold, bounce potential`);
     } else if (rsi < 40) {
       bearishPoints += 15;
-      supportingSignals.push(`RSI ${rsi.toFixed(1)} — bearish pressure`);
+      supportingSignals.push(`RSI ${rsi.toFixed(1)} â€” bearish pressure`);
     } else if (rsi < 50) {
       bearishPoints += 8;
     } else {
@@ -97,58 +97,58 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
     }
   }
 
-  // MACD — weight 20
+  // MACD â€” weight 20
   if (macdLine !== null && macdSignal !== null && macdHistogram !== null) {
     if (macdLine > macdSignal && macdHistogram > 0) {
       bullishPoints += 20;
-      supportingSignals.push("MACD above signal line — bullish momentum confirmed");
+      supportingSignals.push("MACD above signal line â€” bullish momentum confirmed");
     } else if (macdLine < macdSignal && macdHistogram < 0) {
       bearishPoints += 20;
-      supportingSignals.push("MACD below signal line — bearish momentum confirmed");
+      supportingSignals.push("MACD below signal line â€” bearish momentum confirmed");
     } else if (macdLine > macdSignal && macdHistogram < 0) {
       bullishPoints += 10;
       bearishPoints += 5;
-      conflictingSignals.push("MACD bullish but histogram shrinking — momentum uncertain");
+      conflictingSignals.push("MACD bullish but histogram shrinking â€” momentum uncertain");
     } else {
       bearishPoints += 10;
       bullishPoints += 5;
-      conflictingSignals.push("MACD bearish cross forming — watch for continuation");
+      conflictingSignals.push("MACD bearish cross forming â€” watch for continuation");
     }
   }
 
-  // EMA alignment — weight 25
+  // EMA alignment â€” weight 25
   if (ema9 !== null && ema21 !== null && ema50 !== null) {
     if (ema9 > ema21 && ema21 > ema50) {
       bullishPoints += 25;
-      supportingSignals.push("EMA 9 > 21 > 50 — strong bullish alignment");
+      supportingSignals.push("EMA 9 > 21 > 50 â€” strong bullish alignment");
     } else if (ema9 < ema21 && ema21 < ema50) {
       bearishPoints += 25;
-      supportingSignals.push("EMA 9 < 21 < 50 — strong bearish alignment");
+      supportingSignals.push("EMA 9 < 21 < 50 â€” strong bearish alignment");
     } else if (ema9 > ema21 && ema9 > ema50 && ema21 < ema50) {
       bullishPoints += 12;
       bearishPoints += 6;
-      conflictingSignals.push("EMA mixed — short-term bullish vs long-term bearish structure");
+      conflictingSignals.push("EMA mixed â€” short-term bullish vs long-term bearish structure");
     } else {
       bearishPoints += 12;
       bullishPoints += 6;
-      conflictingSignals.push("EMA mixed — short-term bearish vs long-term bullish structure");
+      conflictingSignals.push("EMA mixed â€” short-term bearish vs long-term bullish structure");
     }
   }
 
-  // Stochastic — weight 15
+  // Stochastic â€” weight 15
   if (stochasticK !== null && stochasticD !== null) {
     if (stochasticK > 80 && stochasticK > stochasticD) {
       bearishPoints += 15;
-      supportingSignals.push(`Stochastic ${stochasticK.toFixed(0)} — overbought and falling`);
+      supportingSignals.push(`Stochastic ${stochasticK.toFixed(0)} â€” overbought and falling`);
     } else if (stochasticK > 80) {
       bearishPoints += 10;
-      conflictingSignals.push(`Stochastic ${stochasticK.toFixed(0)} — overbought zone`);
+      conflictingSignals.push(`Stochastic ${stochasticK.toFixed(0)} â€” overbought zone`);
     } else if (stochasticK < 20 && stochasticK < stochasticD) {
       bullishPoints += 15;
-      supportingSignals.push(`Stochastic ${stochasticK.toFixed(0)} — oversold and rising`);
+      supportingSignals.push(`Stochastic ${stochasticK.toFixed(0)} â€” oversold and rising`);
     } else if (stochasticK < 20) {
       bullishPoints += 10;
-      conflictingSignals.push(`Stochastic ${stochasticK.toFixed(0)} — oversold zone`);
+      conflictingSignals.push(`Stochastic ${stochasticK.toFixed(0)} â€” oversold zone`);
     } else if (stochasticK > stochasticD) {
       bullishPoints += 8;
     } else {
@@ -156,7 +156,7 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
     }
   }
 
-  // ATR / Volatility — weight 10
+  // ATR / Volatility â€” weight 10
   if (atr !== null) {
     if (cond.volatility === "extreme") {
       bearishPoints += 6;
@@ -171,26 +171,26 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
     }
   }
 
-  // Trend Strength — weight 10
+  // Trend Strength â€” weight 10
   if (trendStrength !== null) {
     if (trendStrength > 50 && cond.trend === "bullish") {
       bullishPoints += 10;
-      supportingSignals.push(`Trend strength ${trendStrength.toFixed(0)}% — strong bullish trend`);
+      supportingSignals.push(`Trend strength ${trendStrength.toFixed(0)}% â€” strong bullish trend`);
     } else if (trendStrength > 50 && cond.trend === "bearish") {
       bearishPoints += 10;
-      supportingSignals.push(`Trend strength ${trendStrength.toFixed(0)}% — strong bearish trend`);
+      supportingSignals.push(`Trend strength ${trendStrength.toFixed(0)}% â€” strong bearish trend`);
     } else if (trendStrength < 15) {
       bullishPoints += 3;
       bearishPoints += 3;
-      conflictingSignals.push(`Trend strength ${trendStrength.toFixed(0)}% — weak trend, ranging market`);
+      conflictingSignals.push(`Trend strength ${trendStrength.toFixed(0)}% â€” weak trend, ranging market`);
     }
   }
 
   if (cond.spikeDetected) {
-    conflictingSignals.push("Volatility spike detected — price action unreliable");
+    conflictingSignals.push("Volatility spike detected â€” price action unreliable");
   }
   if (cond.reversalWarning) {
-    conflictingSignals.push("Reversal conditions present — trend change possible");
+    conflictingSignals.push("Reversal conditions present â€” trend change possible");
   }
 
   // Normalize scores
@@ -267,7 +267,7 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
   };
 }
 
-// ─── Signal Quality Engine ────────────────────────────────────────────────────
+// â”€â”€â”€ Signal Quality Engine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface PatternHistoryEntry {
   successRate: number;
@@ -283,7 +283,7 @@ export function computeSignalQuality(
   const cond = detectMarketCondition(indicators);
   const isBullishDominant = signals.bullishScore > signals.bearishScore;
 
-  // ── Indicator Alignment Score (0–100) ──────────────────────────────────────
+  // â”€â”€ Indicator Alignment Score (0â€“100) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Each of 4 indicators gets 25 points if it agrees with the dominant direction
   let alignmentPoints = 0;
 
@@ -292,7 +292,7 @@ export function computeSignalQuality(
     if (isBullishDominant && rsi > 52) alignmentPoints += 25;
     else if (!isBullishDominant && rsi < 48) alignmentPoints += 25;
     else if (Math.abs(rsi - 50) < 5) alignmentPoints += 8; // neutral, partial credit
-    else alignmentPoints += 12; // slight opposite — conflict penalty
+    else alignmentPoints += 12; // slight opposite â€” conflict penalty
   } else {
     alignmentPoints += 12;
   }
@@ -332,7 +332,7 @@ export function computeSignalQuality(
 
   const indicatorAlignment = Math.min(100, alignmentPoints);
 
-  // ── Momentum Confirmation Score (0–100) ──────────────────────────────────────
+  // â”€â”€ Momentum Confirmation Score (0â€“100) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let momentumScore = 0;
 
   // MACD histogram strength
@@ -357,7 +357,7 @@ export function computeSignalQuality(
 
   const momentumConfirmation = Math.min(100, Math.round(momentumScore));
 
-  // ── Volatility Compatibility Score (0–100) ─────────────────────────────────
+  // â”€â”€ Volatility Compatibility Score (0â€“100) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let volatilityScore: number;
   switch (cond.volatility) {
     case "low":    volatilityScore = 85; break; // low vol = clean trending
@@ -369,10 +369,10 @@ export function computeSignalQuality(
   if (cond.spikeDetected) volatilityScore = Math.min(volatilityScore, 15);
   const volatilityCompatibility = volatilityScore;
 
-  // ── Conflict Penalty ──────────────────────────────────────────────────────
+  // â”€â”€ Conflict Penalty â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const conflictPenalty = signals.conflictingSignals.length * 12;
 
-  // ── Historical Boost ──────────────────────────────────────────────────────
+  // â”€â”€ Historical Boost â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let historicalBoost = 0;
   if (patternHistory && patternHistory.totalTrades >= 3) {
     if (patternHistory.successRate >= 70) historicalBoost = 12;
@@ -380,7 +380,7 @@ export function computeSignalQuality(
     else if (patternHistory.successRate <= 35) historicalBoost = -10;
   }
 
-  // ── Clean Signal Score (0–100) ────────────────────────────────────────────
+  // â”€â”€ Clean Signal Score (0â€“100) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const rawClean =
     indicatorAlignment * 0.40 +
     momentumConfirmation * 0.30 +
@@ -389,18 +389,18 @@ export function computeSignalQuality(
 
   const cleanSignalScore = Math.max(0, Math.min(100, Math.round(rawClean + historicalBoost)));
 
-  // ── Risk Score (0–100, higher = riskier) ─────────────────────────────────
+  // â”€â”€ Risk Score (0â€“100, higher = riskier) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const riskScore = Math.max(0, Math.min(100, Math.round(
     100 - cleanSignalScore + conflictPenalty * 0.5
   )));
 
-  // ── Confidence Weight (adjusted with history) ─────────────────────────────
+  // â”€â”€ Confidence Weight (adjusted with history) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const confidenceWeight = Math.min(
     95,
     Math.max(15, signals.confidence + historicalBoost)
   );
 
-  // ── Market Cleanliness ────────────────────────────────────────────────────
+  // â”€â”€ Market Cleanliness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let marketCleanliness: MarketCleanliness;
   if (cleanSignalScore >= 72 && signals.conflictingSignals.length === 0) {
     marketCleanliness = "clean";
@@ -415,7 +415,7 @@ export function computeSignalQuality(
     marketCleanliness = "choppy";
   }
 
-  // ── Setup Rarity ──────────────────────────────────────────────────────────
+  // â”€â”€ Setup Rarity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let setupRarity: SetupRarity;
   const allAligned = indicatorAlignment >= 90;
   if (cleanSignalScore >= 85 && allAligned && historicalBoost > 0) {
@@ -428,7 +428,7 @@ export function computeSignalQuality(
     setupRarity = "common";
   }
 
-  // ── Alert Type ───────────────────────────────────────────────────────────
+  // â”€â”€ Alert Type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let alertType: AlertType = "none";
 
   if (signals.marketState === "Spike Risk") {
@@ -457,7 +457,7 @@ export function computeSignalQuality(
     alertType = "High Confidence Bearish";
   }
 
-  // ── Expiry Seconds ────────────────────────────────────────────────────────
+  // â”€â”€ Expiry Seconds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Higher quality = signal valid longer; spike risk = expires fast
   const expirySeconds =
     alertType === "Spike Risk Warning" ? 120

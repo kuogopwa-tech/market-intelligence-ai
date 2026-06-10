@@ -1,11 +1,11 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { logger } from "../lib/logger";
-import { requireAuth } from "../middleware/auth";
-import { JWT_SECRET, JWT_EXPIRES_IN } from "../lib/config";
+import { logger } from "../lib/logger.js";
+import { requireAuth } from "../middleware/auth.js";
+import { JWT_SECRET, JWT_EXPIRES_IN } from "../lib/config.js";
 
 const router: Router = Router();
 

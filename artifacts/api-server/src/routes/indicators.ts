@@ -1,6 +1,6 @@
-import { Router } from "express";
-import { getCandles } from "../lib/derivWs";
-import { calculateAllIndicators } from "../lib/indicators";
+﻿import { Router } from "express";
+import { getCandles } from "../lib/derivWs.js";
+import { calculateAllIndicators } from "../lib/indicators.js";
 
 const router: Router = Router();
 

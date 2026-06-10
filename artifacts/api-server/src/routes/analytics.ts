@@ -1,12 +1,12 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import { symbolTimelineTable } from "@workspace/db";
 import { eq, gte, desc, asc } from "drizzle-orm";
-import { SUPPORTED_SYMBOLS } from "../lib/derivWs";
+import { SUPPORTED_SYMBOLS } from "../lib/derivWs.js";
 
 const router: Router = Router();
 
-// ─── Personality derivation ───────────────────────────────────────────────────
+// â”€â”€â”€ Personality derivation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function derivePersonality(
   spikePct: number,
@@ -40,7 +40,7 @@ function computePredictability(dominantPct: number, samples: number): number {
   return Math.round(dominantPct * 0.75 + dataSufficiency * 25);
 }
 
-// ─── GET /analytics/overview ─────────────────────────────────────────────────
+// â”€â”€â”€ GET /analytics/overview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/analytics/overview", async (req, res) => {
   try {
@@ -142,7 +142,7 @@ router.get("/analytics/overview", async (req, res) => {
   }
 });
 
-// ─── GET /analytics/timeline/:symbol ─────────────────────────────────────────
+// â”€â”€â”€ GET /analytics/timeline/:symbol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/analytics/timeline/:symbol", async (req, res) => {
   try {
@@ -185,7 +185,7 @@ router.get("/analytics/timeline/:symbol", async (req, res) => {
   }
 });
 
-// ─── GET /analytics/heatmap/:symbol ──────────────────────────────────────────
+// â”€â”€â”€ GET /analytics/heatmap/:symbol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/analytics/heatmap/:symbol", async (req, res) => {
   try {

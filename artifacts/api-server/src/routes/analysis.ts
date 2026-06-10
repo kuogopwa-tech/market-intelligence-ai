@@ -1,12 +1,12 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import { aiAnalysisTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
-import { getCandles } from "../lib/derivWs";
-import { calculateAllIndicators } from "../lib/indicators";
-import { generateAnalysis } from "../lib/aiService";
-import { mergeSignals, computeSignalQuality } from "../lib/signalEngine";
-import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine";
+import { getCandles } from "../lib/derivWs.js";
+import { calculateAllIndicators } from "../lib/indicators.js";
+import { generateAnalysis } from "../lib/aiService.js";
+import { mergeSignals, computeSignalQuality } from "../lib/signalEngine.js";
+import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine.js";
 import { learningMemoryTable } from "@workspace/db";
 import { GenerateAnalysisBody } from "@workspace/api-zod";
 
@@ -25,7 +25,7 @@ async function getMemoryContext(symbol: string): Promise<string> {
     return memories
       .map(
         (m) =>
-          `Pattern: ${m.patternType} → Outcome: ${m.outcome}${m.accuracy !== null ? ` (${m.accuracy.toFixed(0)}% accuracy)` : ""}`
+          `Pattern: ${m.patternType} â†’ Outcome: ${m.outcome}${m.accuracy !== null ? ` (${m.accuracy.toFixed(0)}% accuracy)` : ""}`
       )
       .join("\n");
   } catch {

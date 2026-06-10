@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import {
   intelligenceSnapshotsTable,
@@ -8,13 +8,13 @@ import {
   scanRunsTable,
 } from "@workspace/db";
 import { eq, desc, gte, asc, and } from "drizzle-orm";
-import { getSchedulerStatus } from "../lib/backgroundScanner";
-import { getTimingModel } from "../lib/timingModel";
-import { SUPPORTED_SYMBOLS } from "../lib/derivWs";
+import { getSchedulerStatus } from "../lib/backgroundScanner.js";
+import { getTimingModel } from "../lib/timingModel.js";
+import { SUPPORTED_SYMBOLS } from "../lib/derivWs.js";
 
 const router: Router = Router();
 
-// ── GET /intelligence/status ──────────────────────────────────────────────────
+// â”€â”€ GET /intelligence/status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/intelligence/status", async (req, res) => {
   try {
@@ -94,7 +94,7 @@ router.get("/intelligence/status", async (req, res) => {
   }
 });
 
-// ── GET /intelligence/snapshots/:symbol ───────────────────────────────────────
+// â”€â”€ GET /intelligence/snapshots/:symbol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/intelligence/snapshots/:symbol", async (req, res) => {
   try {
@@ -144,7 +144,7 @@ router.get("/intelligence/snapshots/:symbol", async (req, res) => {
   }
 });
 
-// ── GET /intelligence/hourly/:symbol ─────────────────────────────────────────
+// â”€â”€ GET /intelligence/hourly/:symbol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/intelligence/hourly/:symbol", async (req, res) => {
   try {
@@ -157,7 +157,7 @@ router.get("/intelligence/hourly/:symbol", async (req, res) => {
   }
 });
 
-// ── GET /intelligence/daily/:symbol ──────────────────────────────────────────
+// â”€â”€ GET /intelligence/daily/:symbol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/intelligence/daily/:symbol", async (req, res) => {
   try {
@@ -193,7 +193,7 @@ router.get("/intelligence/daily/:symbol", async (req, res) => {
   }
 });
 
-// ── GET /intelligence/evolution/:symbol ──────────────────────────────────────
+// â”€â”€ GET /intelligence/evolution/:symbol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/intelligence/evolution/:symbol", async (req, res) => {
   try {
@@ -238,7 +238,7 @@ router.get("/intelligence/evolution/:symbol", async (req, res) => {
   }
 });
 
-// ── GET /intelligence/aggregated ─────────────────────────────────────────────
+// â”€â”€ GET /intelligence/aggregated â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/intelligence/aggregated", async (req, res) => {
   try {

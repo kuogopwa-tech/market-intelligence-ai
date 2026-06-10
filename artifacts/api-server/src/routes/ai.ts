@@ -1,5 +1,5 @@
-import { Router } from "express";
-import { checkAiOnline } from "../lib/aiService";
+﻿import { Router } from "express";
+import { checkAiOnline } from "../lib/aiService.js";
 
 const router: Router = Router();
 

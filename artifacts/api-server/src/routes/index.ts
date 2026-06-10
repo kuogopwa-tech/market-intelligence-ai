@@ -1,16 +1,16 @@
-import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import marketRouter from "./market";
-import indicatorsRouter from "./indicators";
-import analysisRouter from "./analysis";
-import predictionsRouter from "./predictions";
-import memoryRouter from "./memory";
-import aiRouter from "./ai";
-import scannerRouter from "./scanner";
-import analyticsRouter from "./analytics";
-import intelligenceRouter from "./intelligence";
-import devRouter from "./dev";
-import authRouter from "./auth";
+﻿import { Router, type IRouter } from "express";
+import healthRouter from "./health.js";
+import marketRouter from "./market.js";
+import indicatorsRouter from "./indicators.js";
+import analysisRouter from "./analysis.js";
+import predictionsRouter from "./predictions.js";
+import memoryRouter from "./memory.js";
+import aiRouter from "./ai.js";
+import scannerRouter from "./scanner.js";
+import analyticsRouter from "./analytics.js";
+import intelligenceRouter from "./intelligence.js";
+import devRouter from "./dev.js";
+import authRouter from "./auth.js";
 
 const router: IRouter = Router();
 

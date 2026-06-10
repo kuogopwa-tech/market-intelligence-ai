@@ -1,8 +1,8 @@
-/**
+﻿/**
  * personalityRefresher.ts
  *
  * Derives and persists a behavioral personality label for a symbol by aggregating
- * the last 7 days of intelligence_snapshots — NOT just the latest scan result.
+ * the last 7 days of intelligence_snapshots â€” NOT just the latest scan result.
  * This means the personality classification improves over time as more scans
  * accumulate. Called once per symbol at the end of every background scan run.
  *
@@ -12,7 +12,7 @@
 import { db } from "@workspace/db";
 import { learningMemoryTable, intelligenceSnapshotsTable } from "@workspace/db";
 import { gte, eq, and } from "drizzle-orm";
-import { logger } from "./logger";
+import { logger } from "./logger.js";
 
 type PersonalityLabel =
   | "Clean Mover"
@@ -70,7 +70,7 @@ function derivePersonalityFromHistory(rows: {
 /**
  * Aggregates the last 7 days of intelligence_snapshots for `symbol`, derives
  * a stable personality label, and persists it to learning_memory.
- * History accumulates intentionally — does NOT upsert.
+ * History accumulates intentionally â€” does NOT upsert.
  */
 export async function refreshSymbolPersonality(
   symbol: string,
@@ -126,7 +126,7 @@ export async function refreshSymbolPersonality(
           : 50,
     });
   } catch (err) {
-    // Non-fatal — log and continue
+    // Non-fatal â€” log and continue
     logger.error({ err, symbol }, "Failed to persist personality snapshot");
   }
 }

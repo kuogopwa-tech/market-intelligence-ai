@@ -1,12 +1,12 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import { learningMemoryTable, symbolTimelineTable } from "@workspace/db";
 import { desc } from "drizzle-orm";
-import { SUPPORTED_SYMBOLS, getCandles } from "../lib/derivWs";
-import { calculateAllIndicators } from "../lib/indicators";
-import { mergeSignals, computeSignalQuality } from "../lib/signalEngine";
-import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine";
-import { runBackgroundScan, getSchedulerStatus } from "../lib/backgroundScanner";
+import { SUPPORTED_SYMBOLS, getCandles } from "../lib/derivWs.js";
+import { calculateAllIndicators } from "../lib/indicators.js";
+import { mergeSignals, computeSignalQuality } from "../lib/signalEngine.js";
+import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine.js";
+import { runBackgroundScan, getSchedulerStatus } from "../lib/backgroundScanner.js";
 
 const router: Router = Router();
 
@@ -54,7 +54,7 @@ router.get("/scanner/scan", async (req, res) => {
   const granularity = parseInt(String(req.query.granularity ?? "60"), 10);
 
   try {
-    // Load all learning memory once — filter per-symbol in memory
+    // Load all learning memory once â€” filter per-symbol in memory
     const allMemory = await db
       .select()
       .from(learningMemoryTable)
@@ -212,7 +212,7 @@ router.get("/scanner/scan", async (req, res) => {
       mostDangerous,
     });
 
-    // Save timeline snapshots in background — non-blocking
+    // Save timeline snapshots in background â€” non-blocking
     void (async () => {
       try {
         const now = new Date();
@@ -243,7 +243,7 @@ router.get("/scanner/scan", async (req, res) => {
           }))
         );
       } catch {
-        // Non-critical — never block the response
+        // Non-critical â€” never block the response
       }
     })();
   } catch (err) {

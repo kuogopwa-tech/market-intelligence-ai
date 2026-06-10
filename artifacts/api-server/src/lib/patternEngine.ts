@@ -1,4 +1,4 @@
-import type { IndicatorSet } from "./indicators";
+﻿import type { IndicatorSet } from "./indicators.js";
 
 export interface PatternClassification {
   name: string;
@@ -28,17 +28,17 @@ export interface LessonEntry {
 }
 
 const PATTERN_DESCRIPTIONS: Record<string, string> = {
-  "Bullish Continuation": "EMA bullish alignment with MACD support — momentum continuation setup",
-  "Bearish Continuation": "EMA bearish alignment with MACD below signal — downward momentum",
-  "Bullish Exhaustion": "Overbought RSI with bullish EMA — potential reversal or correction ahead",
-  "Bearish Exhaustion": "Oversold RSI with bearish EMA — potential bounce or recovery zone",
-  "High Volatility Spike": "ATR elevated — unpredictable price action, reduce risk exposure",
-  "Low Volatility Consolidation": "Mixed EMA with low ATR — breakout imminent, direction unclear",
-  "Double Oversold": "RSI and Stochastic both oversold — strong bounce potential zone",
-  "Double Overbought": "RSI and Stochastic both overbought — strong reversal risk zone",
-  "Bullish Reversal Signal": "MACD turning bullish despite bearish EMA — early reversal forming",
-  "Bearish Reversal Signal": "MACD turning bearish despite bullish EMA — early reversal forming",
-  "Mixed Signals": "Conflicting indicator readings — no clear directional bias, wait for clarity",
+  "Bullish Continuation": "EMA bullish alignment with MACD support â€” momentum continuation setup",
+  "Bearish Continuation": "EMA bearish alignment with MACD below signal â€” downward momentum",
+  "Bullish Exhaustion": "Overbought RSI with bullish EMA â€” potential reversal or correction ahead",
+  "Bearish Exhaustion": "Oversold RSI with bearish EMA â€” potential bounce or recovery zone",
+  "High Volatility Spike": "ATR elevated â€” unpredictable price action, reduce risk exposure",
+  "Low Volatility Consolidation": "Mixed EMA with low ATR â€” breakout imminent, direction unclear",
+  "Double Oversold": "RSI and Stochastic both oversold â€” strong bounce potential zone",
+  "Double Overbought": "RSI and Stochastic both overbought â€” strong reversal risk zone",
+  "Bullish Reversal Signal": "MACD turning bullish despite bearish EMA â€” early reversal forming",
+  "Bearish Reversal Signal": "MACD turning bearish despite bullish EMA â€” early reversal forming",
+  "Mixed Signals": "Conflicting indicator readings â€” no clear directional bias, wait for clarity",
   "prediction_outcome": "Recorded prediction outcome for adaptive learning",
 };
 
@@ -178,21 +178,21 @@ export function generateLessons(memories: MemoryRow[]): LessonEntry[] {
 
     if (stat.successRate >= 70) {
       lessons.push({
-        lesson: `${stat.pattern} succeeded ${stat.successRate}% of the time across ${stat.totalTrades} trades — reliable setup with ${stat.dominantDirection === "rise" ? "bullish" : "bearish"} bias`,
+        lesson: `${stat.pattern} succeeded ${stat.successRate}% of the time across ${stat.totalTrades} trades â€” reliable setup with ${stat.dominantDirection === "rise" ? "bullish" : "bearish"} bias`,
         type: "success",
         pattern: stat.pattern,
         successRate: stat.successRate,
       });
     } else if (stat.successRate >= 55) {
       lessons.push({
-        lesson: `${stat.pattern} shows ${stat.successRate}% success rate — moderate edge, requires additional confirmation`,
+        lesson: `${stat.pattern} shows ${stat.successRate}% success rate â€” moderate edge, requires additional confirmation`,
         type: "info",
         pattern: stat.pattern,
         successRate: stat.successRate,
       });
     } else if (stat.successRate <= 35) {
       lessons.push({
-        lesson: `${stat.pattern} failed ${(100 - stat.successRate).toFixed(1)}% of the time — avoid or apply inverse bias`,
+        lesson: `${stat.pattern} failed ${(100 - stat.successRate).toFixed(1)}% of the time â€” avoid or apply inverse bias`,
         type: "warning",
         pattern: stat.pattern,
         successRate: stat.successRate,
@@ -202,14 +202,14 @@ export function generateLessons(memories: MemoryRow[]): LessonEntry[] {
 
   if (lessons.length === 0 && memories.length >= 2) {
     lessons.push({
-      lesson: "Early stage — patterns forming but need more data to establish reliable edge",
+      lesson: "Early stage â€” patterns forming but need more data to establish reliable edge",
       type: "info",
       pattern: "general",
       successRate: 0,
     });
   } else if (memories.length === 0) {
     lessons.push({
-      lesson: "No predictions recorded yet — start tracking to build adaptive pattern memory",
+      lesson: "No predictions recorded yet â€” start tracking to build adaptive pattern memory",
       type: "info",
       pattern: "general",
       successRate: 0,

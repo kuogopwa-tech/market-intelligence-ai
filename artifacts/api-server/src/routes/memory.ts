@@ -1,8 +1,8 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import { learningMemoryTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
-import { computePatternStats, generateLessons } from "../lib/patternEngine";
+import { computePatternStats, generateLessons } from "../lib/patternEngine.js";
 
 const router: Router = Router();
 
@@ -81,7 +81,7 @@ router.get("/memory/summary", async (req, res) => {
     const recentLessons = lessons.slice(0, 4).map((l) => l.lesson);
 
     if (totalPatterns === 0) {
-      recentLessons.push("No predictions recorded yet — start tracking to build memory");
+      recentLessons.push("No predictions recorded yet â€” start tracking to build memory");
     }
 
     res.json({ totalPatterns, avgAccuracy, topPatterns, recentLessons });

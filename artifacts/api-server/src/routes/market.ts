@@ -1,6 +1,6 @@
-import { Router } from "express";
-import { getCandles, getTicks, getLatestPrice, SUPPORTED_SYMBOLS } from "../lib/derivWs";
-import { calculateAllIndicators, detectMarketCondition } from "../lib/indicators";
+﻿import { Router } from "express";
+import { getCandles, getTicks, getLatestPrice, SUPPORTED_SYMBOLS } from "../lib/derivWs.js";
+import { calculateAllIndicators, detectMarketCondition } from "../lib/indicators.js";
 
 const router: Router = Router();
 

@@ -1,10 +1,10 @@
-import { db } from "@workspace/db";
+﻿import { db } from "@workspace/db";
 import { hourlySummariesTable, dailySummariesTable } from "@workspace/db";
 import { eq, and, lt } from "drizzle-orm";
-import type { SymbolScanResult } from "./backgroundScanner";
-import { logger } from "./logger";
+import type { SymbolScanResult } from "./backgroundScanner.js";
+import { logger } from "./logger.js";
 
-// ── Retention config ──────────────────────────────────────────────────────────
+// â”€â”€ Retention config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const HOURLY_RETENTION_DAYS = 90;
 const DAILY_RETENTION_DAYS = 365;
 
@@ -19,7 +19,7 @@ function dominantValue(items: string[]): string {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Unknown";
 }
 
-// ── Main aggregation entry point ───────────────────────────────────────────────
+// â”€â”€ Main aggregation entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function runAggregation(
   results: SymbolScanResult[],
@@ -51,7 +51,7 @@ export async function runAggregation(
     const dominantState = dominantValue(rows.map((r) => r.marketState));
     const dominantPattern = dominantValue(rows.map((r) => r.patternName));
 
-    // Upsert hourly summary — accumulate if row exists
+    // Upsert hourly summary â€” accumulate if row exists
     try {
       const existing = await db
         .select()

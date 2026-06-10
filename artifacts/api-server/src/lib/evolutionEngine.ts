@@ -1,10 +1,10 @@
-import { db } from "@workspace/db";
+﻿import { db } from "@workspace/db";
 import {
   intelligenceSnapshotsTable,
   learningMemoryTable,
 } from "@workspace/db";
 import { gte, lt, and, sql, eq } from "drizzle-orm";
-import { logger } from "./logger";
+import { logger } from "./logger.js";
 
 const QUALITY_SHIFT_THRESHOLD     = 15;  // points
 const VOLATILITY_SHIFT_THRESHOLD  = 20;  // points on volatilityCompatibility scale
@@ -16,7 +16,7 @@ function dominantValue(items: string[]): string {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Unknown";
 }
 
-// Dedup key — an event with the same symbol + type within the same 1-hour bucket
+// Dedup key â€” an event with the same symbol + type within the same 1-hour bucket
 // is considered a duplicate and will NOT be re-inserted.
 function eventKey(symbol: string, type: string, windowStart: Date): string {
   const hourBucket = windowStart.toISOString().slice(0, 13); // YYYY-MM-DDTHH
@@ -26,7 +26,7 @@ function eventKey(symbol: string, type: string, windowStart: Date): string {
 export async function detectEvolution(): Promise<void> {
   const now = new Date();
 
-  // True rolling timestamp windows — no date-string bucket rounding.
+  // True rolling timestamp windows â€” no date-string bucket rounding.
   const recentStart = new Date(now.getTime() - 24 * 60 * 60 * 1000); // now - 24h
   const priorStart  = new Date(now.getTime() - 48 * 60 * 60 * 1000); // now - 48h
 
@@ -139,31 +139,31 @@ export async function detectEvolution(): Promise<void> {
       return !existingKeys.has(eventKey(symbol, type, recentStart));
     }
 
-    // ── Quality regime shift ────────────────────────────────────────────────
+    // â”€â”€ Quality regime shift â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (Math.abs(qualityDelta) >= QUALITY_SHIFT_THRESHOLD && shouldEmit("quality_shift")) {
       const direction = qualityDelta > 0 ? "improved" : "deteriorated";
       const severity  = qualityDelta > 0 ? "info" : "warning";
       shiftEvents.push({
         symbol,
         type: "quality_shift",
-        description: `Signal quality ${direction} by ${Math.abs(Math.round(qualityDelta))} pts (${Math.round(priorAvgQ)} → ${Math.round(recentAvgQ)}) over 24h rolling window`,
+        description: `Signal quality ${direction} by ${Math.abs(Math.round(qualityDelta))} pts (${Math.round(priorAvgQ)} â†’ ${Math.round(recentAvgQ)}) over 24h rolling window`,
         severity,
       });
     }
 
-    // ── Volatility compatibility shift (new) ───────────────────────────────
+    // â”€â”€ Volatility compatibility shift (new) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (Math.abs(volDelta) >= VOLATILITY_SHIFT_THRESHOLD && shouldEmit("volatility_shift")) {
       const direction = volDelta > 0 ? "improved" : "worsened";
       const severity  = volDelta < 0 ? "warning" : "info";
       shiftEvents.push({
         symbol,
         type: "volatility_shift",
-        description: `Volatility compatibility ${direction} by ${Math.abs(Math.round(volDelta))} pts (${Math.round(priorAvgVol)} → ${Math.round(recentAvgVol)}) — ${volDelta < 0 ? "market conditions less favorable" : "market settling, better timing available"}`,
+        description: `Volatility compatibility ${direction} by ${Math.abs(Math.round(volDelta))} pts (${Math.round(priorAvgVol)} â†’ ${Math.round(recentAvgVol)}) â€” ${volDelta < 0 ? "market conditions less favorable" : "market settling, better timing available"}`,
         severity,
       });
     }
 
-    // ── Market state transition ────────────────────────────────────────────
+    // â”€â”€ Market state transition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (recentState !== priorState && recentState !== "Unknown" && priorState !== "Unknown" && shouldEmit("state_transition")) {
       shiftEvents.push({
         symbol,
@@ -173,22 +173,22 @@ export async function detectEvolution(): Promise<void> {
       });
     }
 
-    // ── Elite opportunity surge ────────────────────────────────────────────
+    // â”€â”€ Elite opportunity surge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (recentElite >= priorElite * 2 && recentElite >= 3 && shouldEmit("elite_surge")) {
       shiftEvents.push({
         symbol,
         type: "elite_surge",
-        description: `Elite opportunity frequency doubled (${priorElite} → ${recentElite} in 24h window)`,
+        description: `Elite opportunity frequency doubled (${priorElite} â†’ ${recentElite} in 24h window)`,
         severity: "info",
       });
     }
 
-    // ── Danger spike ───────────────────────────────────────────────────────
+    // â”€â”€ Danger spike â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (recentDanger >= priorDanger * 2 && recentDanger >= 3 && shouldEmit("danger_spike")) {
       shiftEvents.push({
         symbol,
         type: "danger_spike",
-        description: `Dangerous condition frequency doubled (${priorDanger} → ${recentDanger} in 24h window) — caution advised`,
+        description: `Dangerous condition frequency doubled (${priorDanger} â†’ ${recentDanger} in 24h window) â€” caution advised`,
         severity: "alert",
       });
     }

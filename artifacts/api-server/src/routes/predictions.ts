@@ -1,12 +1,12 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import { predictionsTable, learningMemoryTable } from "@workspace/db";
 import { eq, desc, sql, isNull, and, gt } from "drizzle-orm";
 import { CreatePredictionBody, UpdatePredictionOutcomeBody, UpdatePredictionOutcomeParams } from "@workspace/api-zod";
-import { getCandles } from "../lib/derivWs";
-import { calculateAllIndicators } from "../lib/indicators";
-import { mergeSignals } from "../lib/signalEngine";
-import { classifyIndicatorPattern } from "../lib/patternEngine";
+import { getCandles } from "../lib/derivWs.js";
+import { calculateAllIndicators } from "../lib/indicators.js";
+import { mergeSignals } from "../lib/signalEngine.js";
+import { classifyIndicatorPattern } from "../lib/patternEngine.js";
 
 const router: Router = Router();
 
@@ -77,7 +77,7 @@ async function autoEvaluatePending(symbol: string, currentPrice: number): Promis
       });
     }
   } catch {
-    // Non-critical — don't fail the request
+    // Non-critical â€” don't fail the request
   }
 }
 
@@ -258,7 +258,7 @@ router.post("/predictions/auto", async (req, res) => {
     if (signals.noTradeZone) {
       res.json({
         generated: false,
-        reason: `Market conditions unclear — ${signals.marketState}. Confidence ${signals.confidence}% is below the minimum threshold. Signals conflict: ${signals.conflictingSignals.slice(0, 2).join("; ")}. Avoid directional bias.`,
+        reason: `Market conditions unclear â€” ${signals.marketState}. Confidence ${signals.confidence}% is below the minimum threshold. Signals conflict: ${signals.conflictingSignals.slice(0, 2).join("; ")}. Avoid directional bias.`,
         signals: {
           symbol,
           ...signals,
