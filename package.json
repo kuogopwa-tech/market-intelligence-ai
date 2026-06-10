@@ -1,4 +1,4 @@
-{
+﻿{
     "name":  "workspace",
     "version":  "0.0.0",
     "license":  "MIT",
@@ -7,7 +7,6 @@
                     "build":  "pnpm run typecheck \u0026\u0026 pnpm -r --filter \"!./artifacts/mockup-sandbox\" --if-present run build",
                     "typecheck:libs":  "tsc --build",
                     "typecheck":  "pnpm run typecheck:libs \u0026\u0026 pnpm -r --filter \"./artifacts/**\" --filter \"!./artifacts/mockup-sandbox\" --filter \"./scripts\" --if-present run typecheck",
-                    "vercel-build":  "pnpm run build",
                     "reset:dev":  "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/reset-dev-data.ts",
                     "create:admin":  "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/create-admin.ts"
                 },
