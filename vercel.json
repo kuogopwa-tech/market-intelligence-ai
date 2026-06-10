@@ -2,46 +2,18 @@
   "version": 2,
   "buildCommand": "pnpm --filter \"@workspace/deriv-analyst\" run build",
   "outputDirectory": "artifacts/deriv-analyst/dist/public",
-
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "/api/index.ts"
+    },
+    {
       "src": "/assets/(.*)",
-      "dest": "/assets/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=31536000, immutable"
-      }
+      "dest": "/assets/$1"
     },
     {
-      "src": "/favicon.svg",
-      "dest": "/favicon.svg"
-    },
-    {
-      "src": "/robots.txt",
-      "dest": "/robots.txt"
-    },
-    {
-      "src": "/((?!api/).*)",
+      "src": "/(.*)",
       "dest": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/index.html",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    }
-  ],
-  "cleanUrls": true,
-  "trailingSlash": false,
-
-  "crons": [
-    {
-      "path": "/api/scanner/cron",
-      "schedule": "*/5 * * * *"
     }
   ]
 }
