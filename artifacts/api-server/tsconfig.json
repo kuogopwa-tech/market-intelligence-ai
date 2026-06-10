@@ -1,19 +1,25 @@
 ﻿{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "moduleResolution": "Bundler",
-    "allowImportingTsExtensions": false,
-    "noEmit": false,
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "types": ["node"]
-  },
-  "include": ["src"],
-  "references": [
-    { "path": "../../lib/db" },
-    { "path": "../../lib/api-zod" }
-  ]
+"extends": "../../tsconfig.base.json",
+"compilerOptions": {
+"moduleResolution": "Node",
+"allowImportingTsExtensions": false,
+"esModuleInterop": true,
+"allowSyntheticDefaultImports": true,
+"noEmit": false,
+"composite": true,
+"declaration": true,
+"declarationMap": true,
+"outDir": "dist",
+"rootDir": "src",
+"types": ["node"]
+},
+"include": ["src"],
+"references": [
+{
+"path": "../../lib/db"
+},
+{
+"path": "../../lib/api-zod"
+}
+]
 }

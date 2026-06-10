@@ -1,12 +1,14 @@
 ﻿{
-  "extends": "../tsconfig.base.json",
-  "compilerOptions": {
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": false,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "noEmit": false,
-    "outDir": "dist"
-  },
-  "include": ["index.ts"]
+    "extends":  "../tsconfig.base.json",
+    "compilerOptions":  {
+                            "moduleResolution":  "Node",
+                            "allowImportingTsExtensions":  false,
+                            "esModuleInterop":  true,
+                            "skipLibCheck":  true,
+                            "noEmit":  false,
+                            "outDir":  "dist"
+                        },
+    "include":  [
+                    "index.ts"
+                ]
 }
