@@ -1,7 +1,7 @@
-{
+﻿{
   "compilerOptions": {
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "Node",
     "resolveJsonModule": true,
     "allowImportingTsExtensions": false,
     "noEmit": true,
@@ -26,3 +26,4 @@
     "customConditions": ["workspace"]
   }
 }
+
