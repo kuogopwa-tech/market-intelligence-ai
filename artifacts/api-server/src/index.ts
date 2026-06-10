@@ -14,11 +14,12 @@ import { JWT_SECRET } from "./lib/config"; // Ensure secret is validated on star
 import { checkDbConnection } from "@workspace/db";
 import { checkAiOnline } from "./lib/aiService";
 
-const port = Number(process.env.PORT || "3000");
+// port will be determined at runtime for local development only
 
 const isVercel = process.env.VERCEL === "1" || !!process.env.NOW_REGION;
 
-if (!isVercel) {
+if (process.env.NODE_ENV !== "production") {
+  const port = process.env.PORT || 3000;
   app.listen(port, async (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");
