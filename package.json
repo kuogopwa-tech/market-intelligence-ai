@@ -1,26 +1,27 @@
-{
-  "name": "workspace",
-  "version": "0.0.0",
-  "license": "MIT",
-  "scripts": {
-    "preinstall": "node -e \"const ua=process.env.npm_config_user_agent||''; if(!ua.startsWith('pnpm/')){console.error('Use pnpm instead'); process.exit(1);} const fs=require('fs'); for(const f of ['package-lock.json','yarn.lock']){ try{ if(fs.existsSync(f)) fs.rmSync(f,{force:true}); }catch{} }\"",
-    "build": "pnpm run typecheck && pnpm -r --filter \"!./artifacts/mockup-sandbox\" --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"!./artifacts/mockup-sandbox\" --filter \"./scripts\" --if-present run typecheck",
-    "vercel-build": "pnpm run build",
-    "reset:dev": "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/reset-dev-data.ts",
-    "create:admin": "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/create-admin.ts"
-  },
-  "private": true,
-  "devDependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.61.1",
-    "@tailwindcss/oxide-win32-x64-msvc": "^4.3.0",
-    "@types/node": "catalog:",
-    "lightningcss-win32-x64-msvc": "^1.32.0",
-    "prettier": "^3.8.3",
-    "typescript": "~5.9.3"
-  },
-  "dependencies": {
-    "dotenv": "^16.6.1"
-  }
+﻿{
+    "name":  "workspace",
+    "version":  "0.0.0",
+    "license":  "MIT",
+    "scripts":  {
+                    "preinstall":  "node -e \"const ua=process.env.npm_config_user_agent||\u0027\u0027; if(!ua.startsWith(\u0027pnpm/\u0027)){console.error(\u0027Use pnpm instead\u0027); process.exit(1);} const fs=require(\u0027fs\u0027); for(const f of [\u0027package-lock.json\u0027,\u0027yarn.lock\u0027]){ try{ if(fs.existsSync(f)) fs.rmSync(f,{force:true}); }catch{} }\"",
+                    "build":  "pnpm run typecheck \u0026\u0026 pnpm -r --filter \"!./artifacts/mockup-sandbox\" --if-present run build",
+                    "typecheck:libs":  "tsc --build",
+                    "typecheck":  "pnpm run typecheck:libs \u0026\u0026 pnpm -r --filter \"./artifacts/**\" --filter \"!./artifacts/mockup-sandbox\" --filter \"./scripts\" --if-present run typecheck",
+                    "vercel-build":  "pnpm run build",
+                    "reset:dev":  "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/reset-dev-data.ts",
+                    "create:admin":  "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/create-admin.ts"
+                },
+    "private":  true,
+    "devDependencies":  {
+                            "@rollup/rollup-win32-x64-msvc":  "^4.61.1",
+                            "@tailwindcss/oxide-win32-x64-msvc":  "^4.3.0",
+                            "@types/node":  "catalog:",
+                            "lightningcss-win32-x64-msvc":  "^1.32.0",
+                            "prettier":  "^3.8.3",
+                            "typescript":  "~5.9.3"
+                        },
+    "dependencies":  {
+                         "dotenv":  "^16.6.1"
+                     },
+    "packageManager":  "pnpm@10.34.1"
 }
