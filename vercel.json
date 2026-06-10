@@ -1,10 +1,9 @@
-﻿{
+{
   "version": 2,
   "framework": null,
   "buildCommand": "pnpm run build",
   "outputDirectory": "artifacts/deriv-analyst/dist/public",
   "installCommand": "pnpm install",
-
   "routes": [
     {
       "src": "/api/(.*)",
@@ -30,7 +29,6 @@
       "dest": "/index.html"
     }
   ],
-
   "headers": [
     {
       "source": "/index.html",
@@ -42,10 +40,8 @@
       ]
     }
   ],
-
   "cleanUrls": true,
   "trailingSlash": false,
-
   "crons": [
     {
       "path": "/api/scanner/cron",
