@@ -1,15 +1,22 @@
-// Vercel CommonJS environment may use require() to load this file.
-// Use dynamic import to load the ESM Express app from artifacts, avoiding ERR_REQUIRE_ESM.
 import type { IncomingMessage, ServerResponse } from "http";
 
 let cachedApp: any = null;
 
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
+async function handler(req: IncomingMessage, res: ServerResponse): Promise<any> {
   if (!cachedApp) {
-    const mod = await import("../artifacts/api-server/dist/app.js");
-    cachedApp = (mod && (mod as any).default) ? (mod as any).default : mod;
+    try {
+      const mod = await import("../artifacts/api-server/dist/app.js");
+      cachedApp = mod.default || mod;
+    } catch (err) {
+      console.error("[api] Failed to load app.js:", err);
+      res.statusCode = 500;
+      res.end("Internal Server Error");
+      return;
+    }
   }
 
-  // Express application is a callable request handler: app(req, res, next)
-  return (cachedApp as any)(req as any, res as any);
+  // Express app is callable as middleware/handler
+  return cachedApp(req, res);
 }
+
+export default handler;
