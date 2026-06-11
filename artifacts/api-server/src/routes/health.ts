@@ -1,11 +1,29 @@
 import { Router, type IRouter } from "express";
-import { HealthCheckResponse } from "@workspace/api-zod";
+import { checkAiOnline } from "../lib/aiService.js";
 
 const router: IRouter = Router();
 
 router.get("/healthz", (_req, res) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
-  res.json(data);
+  res.json({
+    status: "ok",
+    service: "market-intelligence-ai",
+    timestamp: new Date().toISOString()
+  });
+});
+
+router.get("/status", async (_req, res) => {
+  const aiStatus = await checkAiOnline();
+  
+  res.json({
+    status: aiStatus.online ? "ok" : "degraded",
+    api: "online",
+    ai: {
+      online: aiStatus.online,
+      provider: aiStatus.provider,
+      model: aiStatus.model
+    },
+    timestamp: new Date().toISOString()
+  });
 });
 
 export default router;
