@@ -14,7 +14,7 @@ import {
 export const useHealth = () => useQuery({ queryKey: ["health"], queryFn: healthApi.get, refetchInterval: 30_000 });
 export const useSymbols = () => useQuery({ queryKey: ["symbols"], queryFn: marketApi.symbols, refetchInterval: 60_000 });
 export const useMarketSummary = (symbol: string) => useQuery({ queryKey: ["market-summary", symbol], queryFn: () => marketApi.summary(symbol), refetchInterval: 10_000 });
-export const useCandles = (symbol: string) => useQuery({ queryKey: ["candles", symbol], queryFn: () => marketApi.candles(symbol), refetchInterval: 10_000 });
+export const useCandles = (symbol: string, granularity = 60) => useQuery({ queryKey: ["candles", symbol, granularity], queryFn: () => marketApi.candles(symbol, granularity, 200), refetchInterval: 10_000 });
 export const useTicks = (symbol: string) => useQuery({ queryKey: ["ticks", symbol], queryFn: () => marketApi.ticks(symbol), refetchInterval: 6_000 });
 export const useScanner = () => useQuery({ queryKey: ["scanner"], queryFn: () => scannerApi.scan(60), refetchInterval: 30_000 });
 export const useAiStatus = () => useQuery({ queryKey: ["ai-status"], queryFn: aiApi.status, refetchInterval: 20_000 });

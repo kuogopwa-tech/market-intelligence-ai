@@ -11,6 +11,8 @@ import analyticsRouter from "./analytics.js";
 import intelligenceRouter from "./intelligence.js";
 import devRouter from "./dev.js";
 import authRouter from "./auth.js";
+import systemRouter from "./system.js";
+import adminRouter from "./admin.js";
 
 const router: IRouter = Router();
 
@@ -26,5 +28,7 @@ router.use(analyticsRouter);
 router.use(intelligenceRouter);
 router.use(devRouter);
 router.use("/auth", authRouter);
+router.use(systemRouter);
+router.use(adminRouter);
 
 export default router;

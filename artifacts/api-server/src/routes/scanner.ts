@@ -6,7 +6,7 @@ import { SUPPORTED_SYMBOLS, getCandles } from "../lib/derivWs.js";
 import { calculateAllIndicators } from "../lib/indicators.js";
 import { mergeSignals, computeSignalQuality } from "../lib/signalEngine.js";
 import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine.js";
-import { runBackgroundScan, getSchedulerStatus } from "../lib/backgroundScanner.js";
+import { runBackgroundScan, getSchedulerStatus, isSystemReset } from "../lib/backgroundScanner.js";
 
 const router: Router = Router();
 
@@ -257,6 +257,14 @@ router.post("/scanner/cron", async (req, res) => {
   const authHeader = req.headers.authorization;
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  // Check if system reset is active - skip cron scan if reset was requested
+  const resetState = isSystemReset();
+  if (resetState.active) {
+    req.log.info({ resetState }, "Cron scan skipped - system reset in progress");
+    res.json({ success: false, error: "System reset in progress", status: getSchedulerStatus() });
     return;
   }
 

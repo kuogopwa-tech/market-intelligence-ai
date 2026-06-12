@@ -181,6 +181,67 @@ const state: SchedulerState = {
 let scanLock = false;
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
+// System reset flag - prevents scanner from running after a reset
+interface SystemResetState {
+  active: boolean;
+  symbol: string | null;
+  resetAt: number | null;
+}
+
+let systemReset: SystemResetState = {
+  active: false,
+  symbol: null,
+  resetAt: null,
+};
+
+/**
+ * Set system reset flag to prevent immediate re-learning after reset.
+ * @param active - true to pause scanner, false to resume
+ * @param symbol - if provided, only pause for this symbol; null for full system pause
+ */
+export function setSystemResetFlag(active: boolean, symbol: string | null): void {
+  systemReset = {
+    active,
+    symbol,
+    resetAt: active ? Date.now() : null,
+  };
+  if (active) {
+    logger.info({ symbol }, "System reset flag set - scanner paused");
+  } else {
+    logger.info({ symbol }, "System reset flag cleared - scanner resumed");
+  }
+}
+
+/**
+ * Check if system reset is active.
+ * If reset is active with a specific symbol, scanner can still run but should skip that symbol.
+ * If reset is active with no symbol (full reset), scanner should not run at all.
+ */
+export function isSystemReset(): SystemResetState {
+  return { ...systemReset };
+}
+
+/**
+ * Check if scanner should run considering the reset state.
+ * @param targetSymbol - if checking for a specific symbol, pass it here
+ * @returns true if scanner should proceed, false if it should skip/pause
+ */
+export function shouldScannerRun(targetSymbol?: string): boolean {
+  if (!systemReset.active) {
+    return true;
+  }
+  // If full system reset (symbol is null), don't run at all
+  if (systemReset.symbol === null) {
+    return false;
+  }
+  // If reset is for a specific symbol, don't scan that symbol
+  if (targetSymbol && systemReset.symbol === targetSymbol) {
+    return false;
+  }
+  // Otherwise, run for other symbols
+  return true;
+}
+
 export function getSchedulerStatus() {
   return {
     ...state,
@@ -194,6 +255,15 @@ export function getSchedulerStatus() {
 export async function runBackgroundScan(): Promise<void> {
   if (scanLock) {
     logger.warn("Background scan skipped â€” previous scan still running");
+    return;
+  }
+
+// Check if system reset is active - skip scan if reset was requested
+  const resetState = isSystemReset();
+  if (resetState.active) {
+    logger.warn({ symbol: resetState.symbol }, "Background scan skipped — system reset in progress");
+    state.lastError = "System reset in progress";
+    state.nextScanAt = Date.now() + SCAN_INTERVAL_MS;
     return;
   }
 

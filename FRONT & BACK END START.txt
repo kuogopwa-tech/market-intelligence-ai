@@ -12,3 +12,4 @@ DB READ
 
 pnpm --filter "@workspace/db" exec drizzle-kit studio
 
+code PROJECT_ARCHITECTURE.md

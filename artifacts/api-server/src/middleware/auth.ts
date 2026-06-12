@@ -1,5 +1,8 @@
 ﻿import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { db } from "@workspace/db";
+import { usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 import { JWT_SECRET } from "../lib/config.js";
 
@@ -50,5 +53,32 @@ export const requireAdmin = () => (req: Request, res: Response, next: NextFuncti
     return;
   }
   next();
+};
+
+// Track user activity - call this on each authenticated request
+export const trackUserActivity = async (userId: string): Promise<void> => {
+  try {
+    await db
+      .update(usersTable)
+      .set({
+        lastActiveAt: new Date(),
+        isOnline: true,
+      })
+      .where(eq(usersTable.id, userId));
+  } catch (err) {
+    logger.debug({ err, userId }, "Failed to track user activity");
+  }
+};
+
+// Mark user as offline (call on disconnect or after inactivity)
+export const markUserOffline = async (userId: string): Promise<void> => {
+  try {
+    await db
+      .update(usersTable)
+      .set({ isOnline: false })
+      .where(eq(usersTable.id, userId));
+  } catch (err) {
+    logger.debug({ err, userId }, "Failed to mark user offline");
+  }
 };
 

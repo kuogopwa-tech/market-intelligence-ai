@@ -12,6 +12,7 @@
 import { db } from "@workspace/db";
 import { learningMemoryTable, intelligenceSnapshotsTable } from "@workspace/db";
 import { gte, eq, and } from "drizzle-orm";
+import { isSystemReset } from "./backgroundScanner.js";
 import { logger } from "./logger.js";
 
 type PersonalityLabel =
@@ -76,6 +77,13 @@ export async function refreshSymbolPersonality(
   symbol: string,
   scanRunId: number | null
 ): Promise<void> {
+  // Skip personality refresh if system reset is active
+  const resetState = isSystemReset();
+  if (resetState.active) {
+    logger.info({ symbol }, "Personality refresh skipped - system reset in progress");
+    return;
+  }
+
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   try {

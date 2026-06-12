@@ -83,3 +83,9 @@ export const analyticsApi = {
     (await api.get(`/analytics/timeline/${symbol}`, { params: { limit } })).data,
   heatmap: async (symbol: string) => (await api.get(`/analytics/heatmap/${symbol}`)).data,
 };
+
+export const systemApi = {
+  resetAll: async (symbol?: string) =>
+    (await api.post<{ success: boolean; wiped: string[]; message: string }>("/system/reset-all", { symbol, confirm: true })).data,
+  status: async () => (await api.get<{ systemReset: boolean; resetSymbol: string | null; resetAt: number | null }>("/system/status")).data,
+};

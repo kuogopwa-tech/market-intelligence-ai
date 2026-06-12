@@ -5,7 +5,34 @@
 @tailwind utilities;
 
 :root {
+  /* Dark theme (default) */
+  --bg-950: #050816;
+  --bg-900: #0B1223;
+  --bg-800: #121A2E;
+  --text-100: #E6EEFF;
+  --text-300: #A8B3CF;
+  --text-500: #6C7897;
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --gradient-1: rgba(34, 211, 238, 0.08);
+  --gradient-2: rgba(59, 130, 246, 0.08);
+  --gradient-3: rgba(139, 92, 246, 0.08);
   color-scheme: dark;
+}
+
+:root.light {
+  --bg-950: #F8FAFC;
+  --bg-900: #F1F5F9;
+  --bg-800: #E2E8F0;
+  --text-100: #0F172A;
+  --text-300: #334155;
+  --text-500: #64748B;
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --gradient-1: rgba(34, 211, 238, 0.12);
+  --gradient-2: rgba(59, 130, 246, 0.12);
+  --gradient-3: rgba(139, 92, 246, 0.12);
+  color-scheme: light;
 }
 
 html,
@@ -17,13 +44,16 @@ body,
 body {
   @apply bg-bg-950 text-text-100 antialiased;
   background-image:
-    radial-gradient(1000px 600px at 10% -20%, rgba(34, 211, 238, 0.08), transparent 55%),
-    radial-gradient(900px 600px at 110% 0%, rgba(59, 130, 246, 0.08), transparent 52%),
-    radial-gradient(700px 500px at 50% 120%, rgba(139, 92, 246, 0.08), transparent 56%);
+    radial-gradient(1000px 600px at 10% -20%, var(--gradient-1), transparent 55%),
+    radial-gradient(900px 600px at 110% 0%, var(--gradient-2), transparent 52%),
+    radial-gradient(700px 500px at 50% 120%, var(--gradient-3), transparent 56%);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .glass {
-  @apply border border-white/10 bg-white/[0.06] backdrop-blur-xl shadow-glass;
+  @apply border backdrop-blur-xl shadow-glass;
+  border-color: var(--glass-border);
+  background-color: var(--glass-bg);
 }
 
 .glowing-card {

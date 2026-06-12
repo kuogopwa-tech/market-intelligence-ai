@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useGetMarketSymbols, getGetMarketSymbolsQueryKey, useGetAiStatus, getGetAiStatusQueryKey } from "@workspace/api-client-react";
 import { useAppStore } from "../store";
@@ -17,6 +17,8 @@ import {
   Cpu,
   LogOut,
   User as UserIcon,
+  Menu,
+  X,
 } from "lucide-react";
 import {
   Select,
@@ -61,6 +63,7 @@ function AlertMonitor() {
 
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { 
     selectedSymbol, 
     setSelectedSymbol, 
@@ -71,6 +74,8 @@ export function Layout({ children }: LayoutProps) {
   } = useAppStore();
   const { user, logout } = useAuth();
   const isAuthPage = location === "/login" || location === "/register";
+
+  const closeSidebar = () => setSidebarOpen(false);
 
   const { data: symbols, isLoading: isLoadingSymbols } = useGetMarketSymbols({
     query: {
@@ -103,8 +108,8 @@ export function Layout({ children }: LayoutProps) {
     <div className={`flex h-screen w-full overflow-hidden bg-background text-foreground ${theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : ''}`}>
       <AlertMonitor />
 
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-card flex flex-col hidden md:flex">
+{/* Desktop Sidebar */}
+      <aside className="w-64 border-r border-border bg-card flex-col hidden md:flex">
         <div className="h-14 border-b border-border flex items-center px-4">
           <div className="flex items-center gap-2 font-bold text-lg text-primary tracking-tight">
             <BrainCircuit className="h-5 w-5 text-blue-500" />
@@ -165,19 +170,100 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </aside>
 
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/60 z-40 md:hidden"
+            onClick={closeSidebar}
+          />
+          <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border z-50 flex flex-col md:hidden animate-in slide-in-from-left">
+            <div className="h-14 border-b border-border flex items-center justify-between px-4">
+              <div className="flex items-center gap-2 font-bold text-lg text-primary tracking-tight">
+                <BrainCircuit className="h-5 w-5 text-blue-500" />
+                <span>Deriv<span className="text-blue-500">Analyst</span></span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={closeSidebar}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
+              {NAV_ITEMS.map((item) => {
+                const isActive = location === item.href;
+                const Icon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href} onClick={closeSidebar}>
+                    <div className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer ${
+                      isActive 
+                        ? "bg-primary/10 text-primary font-medium" 
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    }`}>
+                      <Icon className="h-4 w-4" />
+                      <span className="text-sm">{item.label}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="p-4 border-t border-border space-y-4">
+              <div className="flex items-center gap-2 text-xs">
+                {aiStatus?.online ? (
+                  <>
+                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-green-500 font-medium">AI Engine Online</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="h-2 w-2 rounded-full bg-destructive" />
+                    <span className="text-destructive font-medium">AI Engine Offline</span>
+                  </>
+                )}
+              </div>
+              {user && (
+                <div className="flex items-center justify-between p-2 border border-border rounded-lg bg-background/50">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <UserIcon className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0 overflow-hidden">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold truncate">
+                        {user.role}
+                      </div>
+                      <div className="text-xs font-medium truncate">{user.email}</div>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={logout}>
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
+
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Topbar */}
-        <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-4">
+{/* Topbar */}
+        <header className="h-14 border-b border-border bg-card flex items-center justify-between px-2 sm:px-6 gap-2 sm:gap-4">
+          {/* Mobile menu button */}
+          <button 
+            className="md:hidden p-2 text-muted-foreground hover:text-foreground"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+
+<div className="flex items-center gap-2 sm:gap-4 flex-1 flex-wrap sm:flex-nowrap min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground hidden sm:inline">Symbol</span>
               {isLoadingSymbols ? (
-                <Skeleton className="h-9 w-[180px]" />
+                <Skeleton className="h-9 w-[100px] sm:w-[180px]" />
               ) : (
-                <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
-                  <SelectTrigger className="w-[180px] bg-background border-border">
-                    <SelectValue placeholder="Select symbol" />
+<Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
+                  <SelectTrigger className="w-[140px] sm:w-[180px] bg-background border-border">
+                    <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
 
@@ -193,9 +279,9 @@ export function Layout({ children }: LayoutProps) {
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground hidden lg:inline">Interval</span>
-              <Select value={granularity} onValueChange={setGranularity}>
-                <SelectTrigger className="w-[120px] bg-background border-border">
-                  <SelectValue placeholder="Interval" />
+<Select value={granularity} onValueChange={setGranularity}>
+                <SelectTrigger className="w-[80px] sm:w-[120px] bg-background border-border">
+                  <SelectValue placeholder="Intvl" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[400px] overflow-y-auto">
                   <SelectGroup>
@@ -305,8 +391,8 @@ export function Layout({ children }: LayoutProps) {
             
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground hidden sm:inline">Theme</span>
-              <Select value={theme} onValueChange={(val: any) => setTheme(val)}>
-                <SelectTrigger className="w-[100px] bg-background border-border">
+<Select value={theme} onValueChange={(val: any) => setTheme(val)}>
+                <SelectTrigger className="w-[70px] sm:w-[100px] bg-background border-border">
                   <SelectValue placeholder="Theme" />
                 </SelectTrigger>
                 <SelectContent>

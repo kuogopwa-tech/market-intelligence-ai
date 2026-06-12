@@ -6,16 +6,19 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Dark mode backgrounds
         bg: {
-          950: "#050816",
-          900: "#0B1223",
-          800: "#121A2E",
+          950: "var(--bg-950)",
+          900: "var(--bg-900)",
+          800: "var(--bg-800)",
         },
+        // Dark mode text
         text: {
-          100: "#E6EEFF",
-          300: "#A8B3CF",
-          500: "#6C7897",
+          100: "var(--text-100)",
+          300: "var(--text-300)",
+          500: "var(--text-500)",
         },
+        // Brand colors (same for both modes)
         brand: {
           cyan: "#22D3EE",
           blue: "#3B82F6",

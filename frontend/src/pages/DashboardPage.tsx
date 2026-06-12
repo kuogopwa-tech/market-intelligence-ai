@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { GlassCard, MetricCard } from "@/components/ui/Cards";
 import { ErrorState, Skeleton } from "@/components/ui/States";
 import MarketChart from "@/components/charts/MarketChart";
+import TradingViewChart from "@/components/charts/TradingViewChart";
 import {
   useAccuracy,
   useAiStatus,
@@ -11,13 +13,15 @@ import {
   useScanner,
 } from "@/api/hooks";
 
-const symbol = "R_100";
+// Available symbols for the dropdown
+const SYMBOLS = ["R_100", "R_50", "R_25", "R_10", "R_75", "BTC-100", "ETH-100"];
 
 export default function DashboardPage() {
-  const summary = useMarketSummary(symbol);
-  const candles = useCandles(symbol);
+  const [selectedSymbol, setSelectedSymbol] = useState("R_100");
+  const summary = useMarketSummary(selectedSymbol);
+  const candles = useCandles(selectedSymbol);
   const scanner = useScanner();
-  const latestAnalysis = useLatestAnalysis(symbol);
+  const latestAnalysis = useLatestAnalysis(selectedSymbol);
   const aiStatus = useAiStatus();
   const accuracy = useAccuracy();
   const intelStatus = useIntelligenceStatus();
@@ -35,9 +39,30 @@ export default function DashboardPage() {
         <MetricCard title="Prediction Accuracy" value={`${avgAccuracy}%`} sub={`AI: ${aiStatus.data?.online ? "Online" : "Offline"}`} />
       </div>
 
+      {/* Symbol Selector */}
+      <div className="flex items-center gap-4">
+        <label htmlFor="symbol-select" className="text-sm text-slate-300">Select Symbol:</label>
+        <select
+          id="symbol-select"
+          value={selectedSymbol}
+          onChange={(e) => setSelectedSymbol(e.target.value)}
+          className="rounded-lg border border-white/20 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500 focus:outline-none"
+        >
+          {SYMBOLS.map((sym) => (
+            <option key={sym} value={sym}>{sym}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* TradingView Chart */}
+      <GlassCard>
+        <div className="mb-3 text-sm text-slate-300">TradingView Chart ({selectedSymbol})</div>
+        <TradingViewChart symbol={selectedSymbol} />
+      </GlassCard>
+
       <div className="grid gap-4 xl:grid-cols-3">
         <GlassCard className="xl:col-span-2">
-          <div className="mb-3 text-sm text-slate-300">Live Market Chart ({symbol})</div>
+          <div className="mb-3 text-sm text-slate-300">Candle Data ({selectedSymbol})</div>
           {candles.isLoading ? <Skeleton className="h-72" /> : candles.data ? <MarketChart data={candles.data} /> : <ErrorState message="Unable to load chart" />}
         </GlassCard>
 
