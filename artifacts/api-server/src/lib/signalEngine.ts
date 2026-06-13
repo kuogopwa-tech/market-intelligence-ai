@@ -29,6 +29,7 @@ export interface SignalResult {
   bullishScore: number;
   bearishScore: number;
   neutralScore: number;
+  finalDirection: "Bullish" | "Bearish" | "Volatile";
   confidence: number;
   riskLevel: RiskLevel;
   marketState: MarketState;
@@ -114,6 +115,18 @@ function volatilityCompatibilityScore(volatilityState: VolatilityState): number 
   }
 }
 
+function resolveFinalDirectionFromEMA(params: {
+  ema9: number | null;
+  ema21: number | null;
+  ema50: number | null;
+}): "Bullish" | "Bearish" | "Volatile" {
+  const { ema9, ema21, ema50 } = params;
+  if (ema9 === null || ema21 === null || ema50 === null) return "Volatile";
+  if (ema9 > ema21 && ema21 > ema50) return "Bullish";
+  if (ema9 < ema21 && ema21 < ema50) return "Bearish";
+  return "Volatile";
+}
+
 function stateForDirection(params: {
   bullishScore: number;
   bearishScore: number;
@@ -146,6 +159,9 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
     stochasticD,
     trendStrength,
   } = indicators;
+
+  // HARD LOCK: finalDirection must be derived ONLY from EMA structure.
+  const finalDirection = resolveFinalDirectionFromEMA({ ema9, ema21, ema50 });
 
   const cond = detectMarketCondition(indicators);
   const volatilityState = cond.volatilityState;
@@ -286,7 +302,7 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
   const penaltyVolatility = volatilityPenaltyForConfidence(volatilityState);
   const confidence = clamp(Math.round(baseConfidence - penaltyConflicts - penaltyVolatility), 15, 88);
 
-  // Market state
+  // Market state (does not affect finalDirection hard lock)
   let marketState: MarketState;
   if (volatilityState === "Spike Risk") {
     marketState = "Spike Risk";
@@ -338,6 +354,7 @@ export function mergeSignals(indicators: IndicatorSet): SignalResult {
     bullishScore,
     bearishScore,
     neutralScore,
+    finalDirection,
     confidence,
     riskLevel,
     marketState,

@@ -127,7 +127,9 @@ router.get("/scanner/scan", async (req, res) => {
           symbol: sym.symbol,
           displayName: sym.displayName,
           market: sym.market,
-          // Signal fields
+          // Direction lock output (EMA-only) - one symbol = one final direction
+          finalDirection: signals.finalDirection,
+          // Signal fields (diagnostics only)
           bullishScore: signals.bullishScore,
           bearishScore: signals.bearishScore,
           confidence: signals.confidence,
@@ -181,13 +183,18 @@ router.get("/scanner/scan", async (req, res) => {
     );
 
     const topOpportunity = nonDangerous[0] ?? null;
+
+    // EMA HARD LOCK BUCKETING:
+    // - bestBullish and bestBearish are derived ONLY from finalDirection.
+    // - This guarantees a symbol can never appear in both lists simultaneously.
     const bestBullish =
       [...nonDangerous]
-        .filter((r) => r.bullishScore > 55)
+        .filter((r) => r.finalDirection === "Bullish")
         .sort((a, b) => b.cleanSignalScore - a.cleanSignalScore)[0] ?? null;
+
     const bestBearish =
       [...nonDangerous]
-        .filter((r) => r.bearishScore > 55)
+        .filter((r) => r.finalDirection === "Bearish")
         .sort((a, b) => b.cleanSignalScore - a.cleanSignalScore)[0] ?? null;
     const cleanest =
       [...validResults]

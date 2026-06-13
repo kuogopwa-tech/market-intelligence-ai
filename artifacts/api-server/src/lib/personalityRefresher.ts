@@ -6,7 +6,7 @@
  * This means the personality classification improves over time as more scans
  * accumulate. Called once per symbol at the end of every background scan run.
  *
- * Stored in learning_memory as patternType = 'personality_snapshot' so the AI
+ * Stored in learning_memory as patternType = 'market_personality' so the AI
  * service and analytics query can reference persisted classifications.
  */
 import { db } from "@workspace/db";
@@ -114,7 +114,7 @@ export async function refreshSymbolPersonality(
 
     await db.insert(learningMemoryTable).values({
       symbol,
-      patternType: "personality_snapshot",
+      patternType: "market_personality",
       patternData: {
         personality,
         scanRunId,
@@ -125,13 +125,7 @@ export async function refreshSymbolPersonality(
         avgRisk,
         derivedAt: new Date().toISOString(),
       },
-      outcome: personality === "Clean Mover" || personality === "Trend Follower" ? "correct" : "incorrect",
-      accuracy:
-        personality === "Clean Mover"
-          ? 80
-          : personality === "Spike-Prone" || personality === "Frequently Volatile"
-          ? 20
-          : 50,
+      outcome: "neutral",
     });
   } catch (err) {
     // Non-fatal â€” log and continue
