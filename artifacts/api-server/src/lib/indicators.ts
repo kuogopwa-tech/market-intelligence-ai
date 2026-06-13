@@ -21,6 +21,8 @@ export interface IndicatorSet {
   bollingerMiddle: number | null;
   bollingerLower: number | null;
   atr: number | null;
+  atr20Avg: number | null;      // NEW: 20-period average ATR for adaptive spike detection
+  atrHistory: number[] | null;   // NEW: ATR history for per-symbol normalization
   stochasticK: number | null;
   stochasticD: number | null;
   trendStrength: number | null;
@@ -148,6 +150,80 @@ export function calcATR(candles: Candle[], period = 14): number | null {
   return parseFloat(atr.toFixed(5));
 }
 
+export function calcATRHistory(candles: Candle[], period = 14, lookback = 20): number[] {
+  // Returns rolling ATR values for the last `lookback` periods
+  // Used for adaptive spike detection (avgATR20 calculation)
+  if (candles.length < period + lookback) {
+    // If not enough data, return smaller history
+    lookback = Math.max(5, candles.length - period);
+  }
+  const trueRanges: number[] = [];
+  for (let i = 1; i < candles.length; i++) {
+    const high = candles[i].high;
+    const low = candles[i].low;
+    const prevClose = candles[i - 1].close;
+    const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+    trueRanges.push(tr);
+  }
+  if (trueRanges.length < period) return [];
+  
+  // Calculate initial ATR
+  const results: number[] = [];
+  const initial = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  let atr = initial;
+  results.push(atr);
+  
+  // Calculate rolling ATR values
+  for (let i = period; i < trueRanges.length; i++) {
+    atr = (atr * (period - 1) + trueRanges[i]) / period;
+    results.push(atr);
+  }
+  
+  // Return last `lookback` ATR values
+  const start = Math.max(0, results.length - lookback);
+  return results.slice(start).map(v => parseFloat(v.toFixed(5)));
+}
+
+export function getAvgATR20(candles: Candle[], period = 14): number | null {
+  // Calculate 20-period average ATR for adaptive spike detection
+  const atrHistory = calcATRHistory(candles, period, 20);
+  if (atrHistory.length < 10) return null;  // Need at least 10 ATR values
+  
+  const sum = atrHistory.reduce((a, b) => a + b, 0);
+  return parseFloat((sum / atrHistory.length).toFixed(5));
+}
+
+export type VolatilityState = "Normal" | "Elevated" | "High" | "Spike Risk";
+
+export function calculateSpikeRatio(currentATR: number | null, avgATR20: number | null): {
+  spikeRatio: number | null;
+  volatilityState: VolatilityState;
+} {
+  // Adaptive spike detection based on per-symbol volatility normalization
+  // Returns spikeRatio and volatilityState based on classification rules
+  if (currentATR === null || avgATR20 === null || avgATR20 === 0) {
+    return { spikeRatio: null, volatilityState: "Normal" };
+  }
+  
+  const ratio = currentATR / avgATR20;
+  let state: VolatilityState;
+  
+  if (ratio < 1.2) {
+    state = "Normal";
+  } else if (ratio < 1.5) {
+    state = "Elevated";
+  } else if (ratio < 2.0) {
+    state = "High";
+  } else {
+    state = "Spike Risk";
+  }
+  
+  return {
+    spikeRatio: parseFloat(ratio.toFixed(2)),
+    volatilityState: state
+  };
+}
+
 export function calcStochastic(
   candles: Candle[],
   kPeriod = 14,
@@ -190,9 +266,13 @@ export function detectMarketCondition(indicators: IndicatorSet): {
   momentum: string;
   marketCondition: string;
   spikeDetected: boolean;
+  volatilityState: VolatilityState;
+  spikeRatio: number | null;
+  currentATR: number | null;
+  avgATR20: number | null;
   reversalWarning: boolean;
 } {
-  const { rsi, macdLine, macdSignal, ema9, ema21, ema50, atr, trendStrength } = indicators;
+  const { rsi, macdLine, macdSignal, ema9, ema21, ema50, atr, atr20Avg, trendStrength } = indicators;
 
   let trend = "neutral";
   if (ema9 && ema21 && ema50) {
@@ -225,12 +305,27 @@ export function detectMarketCondition(indicators: IndicatorSet): {
   else if (rsi !== null && (rsi > 75 || rsi < 25)) marketCondition = "reversing";
   else marketCondition = "uncertain";
 
-  const spikeDetected = atrVal > 0.002;
+  // Use adaptive spike detection based on per-symbol volatility normalization
+  const { spikeRatio, volatilityState } = calculateSpikeRatio(atr, atr20Avg);
+  const spikeDetected = volatilityState === "Spike Risk";
+  
   const reversalWarning =
     (rsi !== null && (rsi > 80 || rsi < 20)) ||
     (macdLine !== null && macdSignal !== null && Math.abs(macdLine - macdSignal) > atrVal * 2);
 
-  return { trend, volatility, volatilityValue, momentum, marketCondition, spikeDetected, reversalWarning };
+  return { 
+    trend, 
+    volatility, 
+    volatilityValue, 
+    momentum, 
+    marketCondition, 
+    spikeDetected, 
+    volatilityState,
+    spikeRatio,
+    currentATR: atr,
+    avgATR20: atr20Avg,
+    reversalWarning 
+  };
 }
 
 export function calculateAllIndicators(symbol: string, candles: Candle[]): IndicatorSet {
@@ -242,6 +337,8 @@ export function calculateAllIndicators(symbol: string, candles: Candle[]): Indic
   const sma20 = calcSMA(candles, 20);
   const { upper: bollingerUpper, middle: bollingerMiddle, lower: bollingerLower } = calcBollingerBands(candles);
   const atr = calcATR(candles);
+  const atr20Avg = getAvgATR20(candles);
+  const atrHistory = calcATRHistory(candles, 14, 20);
   const { k: stochasticK, d: stochasticD } = calcStochastic(candles);
   const trendStrength = calcTrendStrength(candles);
 
@@ -260,6 +357,8 @@ export function calculateAllIndicators(symbol: string, candles: Candle[]): Indic
     bollingerMiddle,
     bollingerLower,
     atr,
+    atr20Avg,
+    atrHistory: atrHistory.length > 0 ? atrHistory : null,
     stochasticK,
     stochasticD,
     trendStrength,
