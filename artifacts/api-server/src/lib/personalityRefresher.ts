@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * personalityRefresher.ts
  *
  * Derives and persists a behavioral personality label for a symbol by aggregating

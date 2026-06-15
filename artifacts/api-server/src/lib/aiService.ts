@@ -1,4 +1,4 @@
-﻿import { logger } from "./logger.js";
+import { logger } from "./logger.js";
 import type { IndicatorSet } from "./indicators.js";
 import { detectMarketCondition } from "./indicators.js";
 import { mergeSignals, type SignalResult } from "./signalEngine.js";

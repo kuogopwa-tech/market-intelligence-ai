@@ -1,4 +1,4 @@
-﻿﻿import type { IndicatorSet } from "./indicators.js";
+import type { IndicatorSet } from "./indicators.js";
 import { detectMarketCondition, type VolatilityState } from "./indicators.js";
 
 export type MarketState =

@@ -1,4 +1,4 @@
-﻿import WebSocket from "ws";
+import WebSocket from "ws";
 import { logger } from "./logger.js";
 
 const DERIV_WS_URL = "wss://ws.binaryws.com/websockets/v3?app_id=1089";

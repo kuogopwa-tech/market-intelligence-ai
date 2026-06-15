@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { db } from "@workspace/db";
 import { learningMemoryTable, symbolTimelineTable } from "@workspace/db";
 import { desc } from "drizzle-orm";

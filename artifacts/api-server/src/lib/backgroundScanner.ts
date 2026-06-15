@@ -1,4 +1,4 @@
-﻿﻿import { db, checkDbConnection } from "@workspace/db";
+﻿import { db, checkDbConnection } from "@workspace/db";
 import {
   learningMemoryTable,
   symbolTimelineTable,

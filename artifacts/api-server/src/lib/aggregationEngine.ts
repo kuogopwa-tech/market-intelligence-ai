@@ -1,4 +1,4 @@
-﻿import { db } from "@workspace/db";
+import { db } from "@workspace/db";
 import { hourlySummariesTable, dailySummariesTable } from "@workspace/db";
 import { eq, and, lt } from "drizzle-orm";
 import type { SymbolScanResult } from "./backgroundScanner.js";

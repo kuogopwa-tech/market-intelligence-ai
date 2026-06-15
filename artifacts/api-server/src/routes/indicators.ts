@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { getCandles } from "../lib/derivWs.js";
 import { calculateAllIndicators } from "../lib/indicators.js";
 

@@ -1,4 +1,4 @@
-﻿import type { IndicatorSet } from "./indicators.js";
+import type { IndicatorSet } from "./indicators.js";
 
 export interface PatternClassification {
   name: string;

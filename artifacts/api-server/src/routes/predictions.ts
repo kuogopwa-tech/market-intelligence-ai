@@ -1,16 +1,50 @@
 ﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import { predictionsTable, learningMemoryTable } from "@workspace/db";
-import { eq, desc, sql, isNull, and, gt } from "drizzle-orm";
+import { eq, desc, sql, isNull, and } from "drizzle-orm";
 import { CreatePredictionBody, UpdatePredictionOutcomeBody, UpdatePredictionOutcomeParams } from "@workspace/api-zod";
 import { getCandles, getLatestPrice } from "../lib/derivWs.js";
 import { calculateAllIndicators } from "../lib/indicators.js";
 import { mergeSignals } from "../lib/signalEngine.js";
 import { classifyIndicatorPattern } from "../lib/patternEngine.js";
 import { requireAuth } from "../middleware/auth.js";
+import { logger } from "../lib/logger.js";
 
 const router: Router = Router();
 
+const TRADE_DURATION_SECONDS = 60;
+const PREDICTION_COOLDOWN_MS = 30000; // 30 seconds cooldown
+
+// Rate limiting storage (userId -> symbol -> lastPredictionTimestamp)
+const lastPredictionTimes = new Map<string, Map<string, number>>();
+
+/* -------------------------------------------------------
+   RATE LIMIT HELPER
+------------------------------------------------------- */
+function checkRateLimit(userId: string, symbol: string): { allowed: boolean; remainingSeconds?: number } {
+  if (!lastPredictionTimes.has(userId)) {
+    lastPredictionTimes.set(userId, new Map());
+  }
+  
+  const userTimes = lastPredictionTimes.get(userId)!;
+  const lastTime = userTimes.get(symbol) || 0;
+  const now = Date.now();
+  const elapsed = now - lastTime;
+  
+  if (elapsed < PREDICTION_COOLDOWN_MS) {
+    return { 
+      allowed: false, 
+      remainingSeconds: Math.ceil((PREDICTION_COOLDOWN_MS - elapsed) / 1000) 
+    };
+  }
+  
+  userTimes.set(symbol, now);
+  return { allowed: true };
+}
+
+/* -------------------------------------------------------
+   FORMATTER
+------------------------------------------------------- */
 function formatPrediction(r: typeof predictionsTable.$inferSelect) {
   return {
     id: r.id,
@@ -31,6 +65,9 @@ function formatPrediction(r: typeof predictionsTable.$inferSelect) {
   };
 }
 
+/* -------------------------------------------------------
+   CORE EVALUATION (WRITE ONLY - NO GET ROUTES CALL IT)
+------------------------------------------------------- */
 async function autoEvaluatePending(userId: string, symbol: string, currentPrice: number): Promise<void> {
   try {
     const pending = await db
@@ -48,14 +85,17 @@ async function autoEvaluatePending(userId: string, symbol: string, currentPrice:
 
     for (const pred of pending) {
       const nowS = Math.floor(Date.now() / 1000);
-      const isExpired = pred.expiresAt ? nowS >= pred.expiresAt : (Date.now() - pred.createdAt.getTime() > 5 * 60 * 1000);
-      
+      const ageSeconds = Math.floor((Date.now() - pred.createdAt.getTime()) / 1000);
+
+      const isExpired = pred.expiresAt ? nowS >= pred.expiresAt : ageSeconds > 300;
       const priceDiff = Math.abs(currentPrice - pred.entryPrice) / pred.entryPrice;
-      
-      // Evaluate if expired OR if price moved significantly (0.05%)
+
+      // STRICT RULE: Only evaluate if expired OR (age >= trade duration AND meaningful price movement)
+      if (!isExpired && ageSeconds < TRADE_DURATION_SECONDS) continue;
       if (!isExpired && priceDiff < 0.0005) continue;
 
       let outcome: "correct" | "incorrect";
+
       if (pred.direction === "rise") {
         outcome = currentPrice > pred.entryPrice ? "correct" : "incorrect";
       } else if (pred.direction === "fall") {
@@ -66,60 +106,43 @@ async function autoEvaluatePending(userId: string, symbol: string, currentPrice:
 
       await db
         .update(predictionsTable)
-        .set({ outcome, exitPrice: currentPrice, resolvedAt: Math.floor(Date.now() / 1000) })
+        .set({
+          outcome,
+          exitPrice: currentPrice,
+          resolvedAt: nowS,
+        })
         .where(eq(predictionsTable.id, pred.id));
 
-      // Store in learning memory
-      {
-        const userId = pred.userId;
-
-        console.log("AUTH_USER_ID", undefined);
-        console.log("INSERT_USER_ID", userId);
-
-        const insertedRow = await db.insert(learningMemoryTable).values({
-          userId: pred.userId,
-          symbol: pred.symbol,
-          patternType: (pred.indicators as Record<string, unknown>)?.patternName as string ?? "prediction_outcome",
-          patternData: {
-            direction: pred.direction,
-            confidence: pred.confidence,
-            marketState: pred.marketState,
-            indicators: pred.indicators,
-            autoEvaluated: true,
-          },
-          outcome,
-          accuracy: outcome === "correct" ? pred.confidence : 100 - pred.confidence,
-        });
-
-        console.log("INSERT_RESULT", insertedRow);
-      }
+      await db.insert(learningMemoryTable).values({
+        userId: pred.userId,
+        symbol: pred.symbol,
+        patternType: (pred.indicators as any)?.patternName ?? "prediction_outcome",
+        patternData: {
+          direction: pred.direction,
+          confidence: pred.confidence,
+          marketState: pred.marketState,
+          indicators: pred.indicators,
+        },
+        outcome,
+        accuracy: outcome === "correct" ? pred.confidence : 100 - pred.confidence,
+      });
     }
-  } catch {
-    // Non-critical — don't fail the request
+  } catch (err) {
+    logger.error({ err, userId, symbol }, "Auto-evaluation failed");
   }
 }
 
+/* -------------------------------------------------------
+   GET PREDICTIONS (READ ONLY - NO SIDE EFFECTS)
+------------------------------------------------------- */
 router.get("/predictions", requireAuth(), async (req, res) => {
   const userId = req.user!.id;
   const symbol = req.query.symbol ? String(req.query.symbol) : undefined;
   const limit = Math.min(parseInt(String(req.query.limit ?? "20"), 10), 100);
 
   try {
-    // Auto-evaluate pending predictions for this symbol if provided
-    if (symbol) {
-      const price = getLatestPrice(symbol);
-      if (price) {
-        await autoEvaluatePending(userId, symbol, price);
-      } else {
-        const candles = await getCandles(symbol, 60, 1);
-        if (candles.length > 0) await autoEvaluatePending(userId, symbol, candles[0].close);
-      }
-    }
-
     const filters = [eq(predictionsTable.userId, userId)];
-    if (symbol) {
-      filters.push(eq(predictionsTable.symbol, symbol));
-    }
+    if (symbol) filters.push(eq(predictionsTable.symbol, symbol));
 
     const rows = await db
       .select()
@@ -128,25 +151,75 @@ router.get("/predictions", requireAuth(), async (req, res) => {
       .orderBy(desc(predictionsTable.createdAt))
       .limit(limit);
 
-    res.json(rows.map(formatPrediction));
+    return res.json(rows.map(formatPrediction));
   } catch (err) {
     req.log.error({ err }, "Failed to get predictions");
-    res.status(500).json({ error: "Failed to get predictions" });
+    return res.status(500).json({ error: "Failed to get predictions" });
   }
 });
 
+/* -------------------------------------------------------
+   GET PREDICTION ACCURACY STATS
+------------------------------------------------------- */
+router.get("/predictions/accuracy", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
+
+  try {
+    const results = await db
+      .select({
+        symbol: predictionsTable.symbol,
+        total: sql<number>`COUNT(*)`,
+        correct: sql<number>`SUM(CASE WHEN outcome = 'correct' THEN 1 ELSE 0 END)`,
+        incorrect: sql<number>`SUM(CASE WHEN outcome = 'incorrect' THEN 1 ELSE 0 END)`,
+        pending: sql<number>`SUM(CASE WHEN outcome IS NULL THEN 1 ELSE 0 END)`,
+        accuracy: sql<number>`(SUM(CASE WHEN outcome = 'correct' THEN 1 ELSE 0 END)::float / NULLIF(SUM(CASE WHEN outcome IS NOT NULL THEN 1 ELSE 0 END), 0) * 100)`,
+      })
+      .from(predictionsTable)
+      .where(eq(predictionsTable.userId, userId))
+      .groupBy(predictionsTable.symbol);
+
+    return res.json(results);
+  } catch (err) {
+    req.log.error({ err }, "Failed to get accuracy stats");
+    return res.status(500).json({ error: "Failed to get accuracy stats" });
+  }
+});
+
+/* -------------------------------------------------------
+   CREATE MANUAL PREDICTION (WRITE)
+------------------------------------------------------- */
 router.post("/predictions", requireAuth(), async (req, res) => {
   const userId = req.user!.id;
+
   const parsed = CreatePredictionBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
+    return res.status(400).json({ error: "Invalid request" });
   }
+
   const { symbol, direction, confidence, entryPrice, analysisId, indicators } = parsed.data;
 
   try {
-    console.log("AUTH_USER_ID", req.user?.id);
-    console.log("INSERT_USER_ID", userId);
+    // Check for existing pending prediction
+    const [existing] = await db
+      .select()
+      .from(predictionsTable)
+      .where(
+        and(
+          eq(predictionsTable.userId, userId),
+          eq(predictionsTable.symbol, symbol),
+          isNull(predictionsTable.outcome)
+        )
+      )
+      .limit(1);
+
+    if (existing) {
+      return res.status(409).json({
+        generated: false,
+        duplicate: true,
+        reason: "You already have a pending prediction for this symbol. Resolve it first.",
+        prediction: formatPrediction(existing),
+      });
+    }
 
     const [row] = await db
       .insert(predictionsTable)
@@ -161,203 +234,159 @@ router.post("/predictions", requireAuth(), async (req, res) => {
       })
       .returning();
 
-    console.log("INSERT_RESULT", row);
+    return res.status(201).json(formatPrediction(row));
+  } catch (err: any) {
+    if (err.code === "23505") {
+      const [existing] = await db
+        .select()
+        .from(predictionsTable)
+        .where(
+          and(
+            eq(predictionsTable.userId, userId),
+            eq(predictionsTable.symbol, symbol),
+            isNull(predictionsTable.outcome)
+          )
+        )
+        .limit(1);
 
-    res.status(201).json(formatPrediction(row));
-  } catch (err) {
-    req.log.error({ err, symbol, direction }, "Failed to create prediction in database");
-    res.status(500).json({ error: "Failed to create prediction" });
+      return res.json({
+        generated: false,
+        duplicate: true,
+        reason: "Active prediction exists",
+        prediction: existing ? formatPrediction(existing) : null,
+      });
+    }
+
+    req.log.error({ err }, "Create prediction failed");
+    return res.status(500).json({ error: "Failed to create prediction" });
   }
 });
 
+/* -------------------------------------------------------
+   PATCH OUTCOME (WRITE ONLY)
+------------------------------------------------------- */
 router.patch("/predictions/:id/outcome", requireAuth(), async (req, res) => {
   const userId = req.user!.id;
-  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(String(rawId), 10);
+  const id = parseInt(String(req.params.id), 10);
 
-  const paramsResult = UpdatePredictionOutcomeParams.safeParse({
-    id,
-  });
-  const bodyResult = UpdatePredictionOutcomeBody.safeParse(req.body);
+  const body = UpdatePredictionOutcomeBody.safeParse(req.body);
+  const params = UpdatePredictionOutcomeParams.safeParse({ id });
 
-  if (!paramsResult.success || !bodyResult.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
+  if (!body.success || !params.success) {
+    return res.status(400).json({ error: "Invalid request" });
   }
 
-  const { outcome, exitPrice } = bodyResult.data;
-  const predictionId = paramsResult.data.id;
-
   try {
-    const existing = await db
-      .select()
-      .from(predictionsTable)
-      .where(
-        and(
-          eq(predictionsTable.id, predictionId),
-          eq(predictionsTable.userId, userId),
-        )
-      )
-      .limit(1);
-
-    if (existing.length === 0) {
-      res.status(404).json({ error: "Prediction not found" });
-      return;
-    }
-
     const [updated] = await db
       .update(predictionsTable)
-      .set({ outcome, exitPrice, resolvedAt: Math.floor(Date.now() / 1000) })
+      .set({
+        outcome: body.data.outcome,
+        exitPrice: body.data.exitPrice,
+        resolvedAt: Math.floor(Date.now() / 1000),
+      })
       .where(
         and(
-          eq(predictionsTable.id, predictionId),
+          eq(predictionsTable.id, id),
           eq(predictionsTable.userId, userId),
+          isNull(predictionsTable.outcome)
         )
       )
       .returning();
 
-    const pred = existing[0];
-    const patternName =
-      (pred.indicators as Record<string, unknown>)?.patternName as string ?? "prediction_outcome";
-
-    console.log("AUTH_USER_ID", req.user?.id);
-    console.log("INSERT_USER_ID", userId);
-
-    const insertedRow = await db.insert(learningMemoryTable).values({
-      userId,
-      symbol: pred.symbol,
-      patternType: patternName,
-      patternData: {
-        direction: pred.direction,
-        confidence: pred.confidence,
-        marketState: pred.marketState,
-        indicators: pred.indicators,
-      },
-      outcome,
-      accuracy: outcome === "correct" ? pred.confidence : 100 - pred.confidence,
-    });
-
-    console.log("INSERT_RESULT", insertedRow);
-
-    res.json(formatPrediction(updated));
-  } catch (err) {
-    req.log.error({ err }, "Failed to update prediction outcome");
-    res.status(500).json({ error: "Failed to update outcome" });
-  }
-});
-
-router.get("/predictions/accuracy", requireAuth(), async (req, res) => {
-  const userId = req.user!.id;
-  try {
-    // Auto-evaluate pending predictions for active symbols
-    const pendingSymbols = await db
-      .selectDistinct({ symbol: predictionsTable.symbol })
-      .from(predictionsTable)
-      .where(and(eq(predictionsTable.userId, userId), isNull(predictionsTable.outcome)));
-    
-    for (const { symbol } of pendingSymbols) {
-       const price = getLatestPrice(symbol);
-       if (price) {
-         await autoEvaluatePending(userId, symbol, price);
-       } else {
-         const candles = await getCandles(symbol, 60, 1);
-         if (candles.length > 0) await autoEvaluatePending(userId, symbol, candles[0].close);
-       }
+    if (!updated) {
+      return res.status(404).json({ error: "Prediction not found" });
     }
 
-    const rows = await db
-      .select({
-        symbol: predictionsTable.symbol,
-        total: sql<number>`count(*)::int`,
-        correct: sql<number>`count(*) filter (where ${predictionsTable.outcome} = 'correct')::int`,
-        incorrect: sql<number>`count(*) filter (where ${predictionsTable.outcome} = 'incorrect')::int`,
-        pending: sql<number>`count(*) filter (where ${predictionsTable.outcome} is null)::int`,
-      })
-      .from(predictionsTable)
-      .where(eq(predictionsTable.userId, userId))
-      .groupBy(predictionsTable.symbol);
+    await db.insert(learningMemoryTable).values({
+      userId,
+      symbol: updated.symbol,
+      patternType: (updated.indicators as any)?.patternName ?? "outcome",
+      patternData: {
+        direction: updated.direction,
+        confidence: updated.confidence,
+        marketState: updated.marketState,
+      },
+      outcome: body.data.outcome,
+      accuracy: body.data.outcome === "correct" ? updated.confidence : 100 - updated.confidence,
+    });
 
-    res.json(
-      rows.map((r) => ({
-        symbol: r.symbol,
-        total: r.total,
-        correct: r.correct,
-        incorrect: r.incorrect,
-        pending: r.pending,
-        accuracy:
-          r.total > 0
-            ? parseFloat(((r.correct / (r.correct + r.incorrect || 1)) * 100).toFixed(1))
-            : 0,
-      }))
-    );
+    return res.json(formatPrediction(updated));
   } catch (err) {
-    req.log.error({ err }, "Failed to get accuracy stats");
-    res.status(500).json({ error: "Failed to get accuracy stats" });
+    req.log.error({ err }, "Outcome update failed");
+    return res.status(500).json({ error: "Failed to update outcome" });
   }
 });
 
+/* -------------------------------------------------------
+   AUTO PREDICTION (WRITE ONLY WITH RATE LIMITING)
+------------------------------------------------------- */
 router.post("/predictions/auto", requireAuth(), async (req, res) => {
   const userId = req.user!.id;
   const symbol = String(req.body?.symbol ?? "R_100");
 
+  // 🔥 RATE LIMIT CHECK
+  const rateLimit = checkRateLimit(userId, symbol);
+  if (!rateLimit.allowed) {
+    return res.status(429).json({
+      generated: false,
+      reason: `Please wait ${rateLimit.remainingSeconds} seconds before generating another prediction.`,
+      rateLimited: true,
+    });
+  }
+
   try {
-    const candles = await getCandles(symbol, 60, 200);
-    if (candles.length < 20) {
-      res.status(503).json({ error: "Insufficient market data" });
-      return;
-    }
-
-    const currentPrice = candles[candles.length - 1].close;
-
-    // Auto-evaluate any stale pending predictions for this user
-    await autoEvaluatePending(userId, symbol, currentPrice);
-
-    // Check for duplicate pending prediction within last 60 seconds for this user
-    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
-    const [existingPrediction] = await db
+    // Check for existing pending prediction (duplicate prevention)
+    const [existingPending] = await db
       .select()
       .from(predictionsTable)
       .where(
         and(
           eq(predictionsTable.userId, userId),
           eq(predictionsTable.symbol, symbol),
-          isNull(predictionsTable.outcome),
-          gt(predictionsTable.createdAt, oneMinuteAgo)
+          isNull(predictionsTable.outcome)
         )
       )
       .limit(1);
 
-    if (existingPrediction) {
-      res.json({
+    if (existingPending) {
+      return res.status(409).json({
         generated: false,
         duplicate: true,
-        reason: "Recent pending prediction already exists",
-        prediction: formatPrediction(existingPrediction),
+        reason: "You already have a pending prediction. Wait for it to resolve or update its outcome.",
+        prediction: formatPrediction(existingPending),
       });
-      return;
     }
+
+    const candles = await getCandles(symbol, 60, 200);
+    if (candles.length < 20) {
+      return res.status(503).json({ 
+        generated: false, 
+        reason: "Insufficient market data. Please try again in a few seconds." 
+      });
+    }
+
+    const currentPrice = candles[candles.length - 1].close;
 
     const indicators = calculateAllIndicators(symbol, candles);
     const signals = mergeSignals(indicators);
     const pattern = classifyIndicatorPattern(indicators);
 
+    // 🔥 FIXED: Correct No-Trade Zone response
     if (signals.noTradeZone) {
-      res.json({
+      return res.status(200).json({
         generated: false,
-        reason: `Market conditions unclear — ${signals.marketState}. Confidence ${signals.confidence}% is below the minimum threshold. Signals conflict: ${signals.conflictingSignals.slice(0, 2).join("; ")}. Avoid directional bias.`,
-        signals: {
-          symbol,
-          ...signals,
-        },
+        reason: `⚠️ No-Trade Zone Detected: ${signals.marketState} market with ${signals.riskLevel?.toLowerCase() || "moderate"} risk. ${signals.marketCleanliness || "Mixed"} conditions.`,
+        signals,
       });
-      return;
     }
 
-    const direction: "rise" | "fall" = signals.bullishScore > 50 ? "rise" : "fall";
-    const expiresAt = Math.floor(Date.now() / 1000) + 5 * 60; // 5 minutes expiry
-
-    console.log("AUTH_USER_ID", req.user?.id);
-    console.log("INSERT_USER_ID", userId);
+    const direction: "rise" | "fall" = signals.bullishScore > signals.bearishScore ? "rise" : "fall";
+    const confidence = Math.round(signals.confidence);
+    
+    // Ensure confidence is within valid range
+    const finalConfidence = Math.min(100, Math.max(0, confidence));
+    
+    const expiresAt = Math.floor(Date.now() / 1000) + 5 * 60;
 
     const [row] = await db
       .insert(predictionsTable)
@@ -365,34 +394,69 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
         userId,
         symbol,
         direction,
-        confidence: signals.confidence,
+        confidence: finalConfidence,
         entryPrice: currentPrice,
         marketState: signals.marketState,
         expiresAt,
         indicators: {
           ...indicators,
           patternName: pattern.name,
-          bullishScore: signals.bullishScore,
-          bearishScore: signals.bearishScore,
-          riskLevel: signals.riskLevel,
+          signals: {
+            bullishScore: signals.bullishScore,
+            bearishScore: signals.bearishScore,
+            marketCleanliness: signals.marketCleanliness,
+            setupRarity: signals.setupRarity,
+            alertType: signals.alertType,
+            supportingSignals: signals.supportingSignals,
+            conflictingSignals: signals.conflictingSignals,
+          },
         },
       })
       .returning();
 
-    console.log("INSERT_RESULT", row);
+    logger.info({ 
+      userId, 
+      symbol, 
+      direction, 
+      confidence: finalConfidence,
+      entryPrice: currentPrice,
+      marketState: signals.marketState,
+      predictionId: row.id 
+    }, "Auto prediction generated successfully");
 
-    res.json({
+    return res.status(201).json({
       generated: true,
-      reason: `${signals.marketState} with ${signals.confidence}% confidence. ${direction === "rise" ? "Bullish" : "Bearish"} bias at ${currentPrice.toFixed(4)}. Pattern: ${pattern.name}. Risk: ${signals.riskLevel}.`,
+      reason: `✓ ${direction.toUpperCase()} prediction generated with ${finalConfidence}% confidence based on ${signals.marketCleanliness} market conditions.`,
       prediction: formatPrediction(row),
-      signals: {
-        symbol,
-        ...signals,
-      },
     });
-  } catch (err) {
-    req.log.error({ err }, "Failed to auto-generate prediction");
-    res.status(500).json({ error: "Failed to auto-generate prediction" });
+  } catch (err: any) {
+    // Handle duplicate key error gracefully
+    if (err.code === "23505") {
+      const [existing] = await db
+        .select()
+        .from(predictionsTable)
+        .where(
+          and(
+            eq(predictionsTable.userId, userId),
+            eq(predictionsTable.symbol, symbol),
+            isNull(predictionsTable.outcome)
+          )
+        )
+        .limit(1);
+
+      return res.status(409).json({
+        generated: false,
+        duplicate: true,
+        reason: "Active prediction exists. Please resolve it first.",
+        prediction: existing ? formatPrediction(existing) : null,
+      });
+    }
+
+    req.log.error({ err, userId, symbol }, "Auto prediction failed");
+    return res.status(500).json({ 
+      generated: false, 
+      reason: "Failed to generate prediction. Please try again." 
+    });
   }
 });
 

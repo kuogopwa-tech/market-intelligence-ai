@@ -1,4 +1,4 @@
-﻿import { Router, type IRouter } from "express";
+import { Router, type IRouter } from "express";
 import healthRouter from "./health.js";
 import marketRouter from "./market.js";
 import indicatorsRouter from "./indicators.js";

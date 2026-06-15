@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { getCandles, getTicks, getLatestPrice, SUPPORTED_SYMBOLS } from "../lib/derivWs.js";
 import { calculateAllIndicators, detectMarketCondition } from "../lib/indicators.js";
 

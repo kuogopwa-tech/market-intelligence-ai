@@ -1,4 +1,4 @@
-﻿import { Router, type IRouter } from "express";
+import { Router, type IRouter } from "express";
 import { db, predictionsTable, learningMemoryTable } from "@workspace/db";
 import { logger } from "../lib/logger.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
