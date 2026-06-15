@@ -169,7 +169,7 @@ export default function Analysis() {
                   <div>
                     <span className="font-medium text-orange-400">No-Trade Zone</span>
                     <p className="text-muted-foreground text-xs mt-0.5">
-                      Conflicting signals — avoid directional predictions until conditions clarify
+                      No-trade zone — confidence too low for r
                     </p>
                   </div>
                 </div>

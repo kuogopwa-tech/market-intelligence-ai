@@ -247,7 +247,9 @@ ${
     : ""
 }
 
-Respond ONLY in this exact JSON format (no other text):
+RETURN FORMAT (JSON ONLY):
+Return ONLY valid JSON with exactly these keys. Do NOT include markdown, backticks, explanations, or any other text.
+
 {
   "reasoning": "3-4 sentence analysis explaining WHY market may rise or fall, which indicators conflict, and what the momentum/trend quality is",
   "rise_probability": <0-100 integer>,
@@ -262,7 +264,11 @@ Rules:
 - If no-trade zone, set confidence below 40
 - Reference specific indicator values in reasoning
 - Keep reasoning under 200 words
-- Be direct and analytical`;
+- Be direct and analytical
+- No markdown
+- No backticks
+- No explanation
+- Output must be a single JSON object only`;
 }
 
 function buildRuleBasedReasoning(
@@ -332,6 +338,64 @@ function buildRuleBasedReasoning(
   return lines.join("\n");
 }
 
+function safeExtractJsonObject(raw: string): unknown {
+  // Fast path: direct JSON object parse
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      // fallthrough
+    }
+  }
+
+  // Balanced-brace extraction (handles extra leading/trailing text)
+  const start = raw.indexOf("{");
+  if (start === -1) throw new Error("No JSON object start found in AI response");
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < raw.length; i++) {
+    const ch = raw[i];
+
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (ch === "{") depth++;
+    if (ch === "}") depth--;
+
+    if (depth === 0) {
+      const candidate = raw.slice(start, i + 1);
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        // fallthrough to regex attempt
+        break;
+      }
+    }
+  }
+
+  // Regex fallback: first JSON object-ish block
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON in AI response");
+  return JSON.parse(match[0]);
+}
+
 function ruleBasedAnalysis(
   symbol: string,
   indicators: IndicatorSet,
@@ -395,10 +459,13 @@ export async function generateAnalysis(
   try {
     const prompt = buildPrompt(symbol, indicators, signals, memoryContext);
     const raw = await queryAi(prompt);
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON in AI response");
 
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const extracted = safeExtractJsonObject(raw);
+    if (!extracted || typeof extracted !== "object" || Array.isArray(extracted)) {
+      throw new Error("No JSON object in AI response");
+    }
+
+    const parsed = extracted as {
       reasoning?: string;
       rise_probability?: number;
       fall_probability?: number;

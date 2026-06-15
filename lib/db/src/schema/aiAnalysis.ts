@@ -1,9 +1,11 @@
-import { pgTable, serial, text, real, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, real, integer, jsonb, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users.js";
 
 export const aiAnalysisTable = pgTable("ai_analysis", {
   id: serial("id").primaryKey(),
+  userId: uuid("user_id").references(() => usersTable.id).notNull(),
   symbol: text("symbol").notNull(),
   reasoning: text("reasoning").notNull(),
   riseProbability: real("rise_probability").notNull(),

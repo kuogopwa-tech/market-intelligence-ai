@@ -3,17 +3,20 @@ import { db } from "@workspace/db";
 import { predictionsTable, learningMemoryTable } from "@workspace/db";
 import { eq, desc, sql, isNull, and, gt } from "drizzle-orm";
 import { CreatePredictionBody, UpdatePredictionOutcomeBody, UpdatePredictionOutcomeParams } from "@workspace/api-zod";
-import { getCandles } from "../lib/derivWs.js";
+import { getCandles, getLatestPrice } from "../lib/derivWs.js";
 import { calculateAllIndicators } from "../lib/indicators.js";
 import { mergeSignals } from "../lib/signalEngine.js";
 import { classifyIndicatorPattern } from "../lib/patternEngine.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router: Router = Router();
 
 function formatPrediction(r: typeof predictionsTable.$inferSelect) {
   return {
     id: r.id,
+    userId: r.userId,
     symbol: r.symbol,
+    interval: r.interval,
     direction: r.direction,
     confidence: r.confidence,
     entryPrice: r.entryPrice,
@@ -28,24 +31,29 @@ function formatPrediction(r: typeof predictionsTable.$inferSelect) {
   };
 }
 
-async function autoEvaluatePending(symbol: string, currentPrice: number): Promise<void> {
+async function autoEvaluatePending(userId: string, symbol: string, currentPrice: number): Promise<void> {
   try {
     const pending = await db
       .select()
       .from(predictionsTable)
-      .where(eq(predictionsTable.symbol, symbol))
+      .where(
+        and(
+          eq(predictionsTable.symbol, symbol),
+          eq(predictionsTable.userId, userId),
+          isNull(predictionsTable.outcome)
+        )
+      )
       .orderBy(desc(predictionsTable.createdAt))
       .limit(20);
 
-    const stalePending = pending.filter((p) => {
-      if (p.outcome !== null) return false;
-      const ageMs = Date.now() - p.createdAt.getTime();
-      return ageMs > 5 * 60 * 1000; // older than 5 minutes
-    });
-
-    for (const pred of stalePending) {
+    for (const pred of pending) {
+      const nowS = Math.floor(Date.now() / 1000);
+      const isExpired = pred.expiresAt ? nowS >= pred.expiresAt : (Date.now() - pred.createdAt.getTime() > 5 * 60 * 1000);
+      
       const priceDiff = Math.abs(currentPrice - pred.entryPrice) / pred.entryPrice;
-      if (priceDiff < 0.0002) continue; // price hasn't moved enough
+      
+      // Evaluate if expired OR if price moved significantly (0.05%)
+      if (!isExpired && priceDiff < 0.0005) continue;
 
       let outcome: "correct" | "incorrect";
       if (pred.direction === "rise") {
@@ -62,34 +70,63 @@ async function autoEvaluatePending(symbol: string, currentPrice: number): Promis
         .where(eq(predictionsTable.id, pred.id));
 
       // Store in learning memory
-      await db.insert(learningMemoryTable).values({
-        symbol: pred.symbol,
-        patternType: (pred.indicators as Record<string, unknown>)?.patternName as string ?? "prediction_outcome",
-        patternData: {
-          direction: pred.direction,
-          confidence: pred.confidence,
-          marketState: pred.marketState,
-          indicators: pred.indicators,
-          autoEvaluated: true,
-        },
-        outcome,
-        accuracy: outcome === "correct" ? pred.confidence : 100 - pred.confidence,
-      });
+      {
+        const userId = pred.userId;
+
+        console.log("AUTH_USER_ID", undefined);
+        console.log("INSERT_USER_ID", userId);
+
+        const insertedRow = await db.insert(learningMemoryTable).values({
+          userId: pred.userId,
+          symbol: pred.symbol,
+          patternType: (pred.indicators as Record<string, unknown>)?.patternName as string ?? "prediction_outcome",
+          patternData: {
+            direction: pred.direction,
+            confidence: pred.confidence,
+            marketState: pred.marketState,
+            indicators: pred.indicators,
+            autoEvaluated: true,
+          },
+          outcome,
+          accuracy: outcome === "correct" ? pred.confidence : 100 - pred.confidence,
+        });
+
+        console.log("INSERT_RESULT", insertedRow);
+      }
     }
   } catch {
-    // Non-critical â€” don't fail the request
+    // Non-critical — don't fail the request
   }
 }
 
-router.get("/predictions", async (req, res) => {
+router.get("/predictions", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const symbol = req.query.symbol ? String(req.query.symbol) : undefined;
   const limit = Math.min(parseInt(String(req.query.limit ?? "20"), 10), 100);
 
   try {
-    const query = db.select().from(predictionsTable);
-    const rows = await (symbol
-      ? query.where(eq(predictionsTable.symbol, symbol)).orderBy(desc(predictionsTable.createdAt)).limit(limit)
-      : query.orderBy(desc(predictionsTable.createdAt)).limit(limit));
+    // Auto-evaluate pending predictions for this symbol if provided
+    if (symbol) {
+      const price = getLatestPrice(symbol);
+      if (price) {
+        await autoEvaluatePending(userId, symbol, price);
+      } else {
+        const candles = await getCandles(symbol, 60, 1);
+        if (candles.length > 0) await autoEvaluatePending(userId, symbol, candles[0].close);
+      }
+    }
+
+    const filters = [eq(predictionsTable.userId, userId)];
+    if (symbol) {
+      filters.push(eq(predictionsTable.symbol, symbol));
+    }
+
+    const rows = await db
+      .select()
+      .from(predictionsTable)
+      .where(and(...filters))
+      .orderBy(desc(predictionsTable.createdAt))
+      .limit(limit);
 
     res.json(rows.map(formatPrediction));
   } catch (err) {
@@ -98,7 +135,8 @@ router.get("/predictions", async (req, res) => {
   }
 });
 
-router.post("/predictions", async (req, res) => {
+router.post("/predictions", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const parsed = CreatePredictionBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
@@ -107,9 +145,13 @@ router.post("/predictions", async (req, res) => {
   const { symbol, direction, confidence, entryPrice, analysisId, indicators } = parsed.data;
 
   try {
+    console.log("AUTH_USER_ID", req.user?.id);
+    console.log("INSERT_USER_ID", userId);
+
     const [row] = await db
       .insert(predictionsTable)
       .values({
+        userId,
         symbol,
         direction,
         confidence,
@@ -119,6 +161,8 @@ router.post("/predictions", async (req, res) => {
       })
       .returning();
 
+    console.log("INSERT_RESULT", row);
+
     res.status(201).json(formatPrediction(row));
   } catch (err) {
     req.log.error({ err, symbol, direction }, "Failed to create prediction in database");
@@ -126,8 +170,14 @@ router.post("/predictions", async (req, res) => {
   }
 });
 
-router.patch("/predictions/:id/outcome", async (req, res) => {
-  const paramsResult = UpdatePredictionOutcomeParams.safeParse({ id: parseInt(req.params.id, 10) });
+router.patch("/predictions/:id/outcome", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(String(rawId), 10);
+
+  const paramsResult = UpdatePredictionOutcomeParams.safeParse({
+    id,
+  });
   const bodyResult = UpdatePredictionOutcomeBody.safeParse(req.body);
 
   if (!paramsResult.success || !bodyResult.success) {
@@ -135,14 +185,19 @@ router.patch("/predictions/:id/outcome", async (req, res) => {
     return;
   }
 
-  const { id } = paramsResult.data;
   const { outcome, exitPrice } = bodyResult.data;
+  const predictionId = paramsResult.data.id;
 
   try {
     const existing = await db
       .select()
       .from(predictionsTable)
-      .where(eq(predictionsTable.id, id))
+      .where(
+        and(
+          eq(predictionsTable.id, predictionId),
+          eq(predictionsTable.userId, userId),
+        )
+      )
       .limit(1);
 
     if (existing.length === 0) {
@@ -153,14 +208,23 @@ router.patch("/predictions/:id/outcome", async (req, res) => {
     const [updated] = await db
       .update(predictionsTable)
       .set({ outcome, exitPrice, resolvedAt: Math.floor(Date.now() / 1000) })
-      .where(eq(predictionsTable.id, id))
+      .where(
+        and(
+          eq(predictionsTable.id, predictionId),
+          eq(predictionsTable.userId, userId),
+        )
+      )
       .returning();
 
     const pred = existing[0];
     const patternName =
       (pred.indicators as Record<string, unknown>)?.patternName as string ?? "prediction_outcome";
 
-    await db.insert(learningMemoryTable).values({
+    console.log("AUTH_USER_ID", req.user?.id);
+    console.log("INSERT_USER_ID", userId);
+
+    const insertedRow = await db.insert(learningMemoryTable).values({
+      userId,
       symbol: pred.symbol,
       patternType: patternName,
       patternData: {
@@ -173,6 +237,8 @@ router.patch("/predictions/:id/outcome", async (req, res) => {
       accuracy: outcome === "correct" ? pred.confidence : 100 - pred.confidence,
     });
 
+    console.log("INSERT_RESULT", insertedRow);
+
     res.json(formatPrediction(updated));
   } catch (err) {
     req.log.error({ err }, "Failed to update prediction outcome");
@@ -180,8 +246,25 @@ router.patch("/predictions/:id/outcome", async (req, res) => {
   }
 });
 
-router.get("/predictions/accuracy", async (req, res) => {
+router.get("/predictions/accuracy", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   try {
+    // Auto-evaluate pending predictions for active symbols
+    const pendingSymbols = await db
+      .selectDistinct({ symbol: predictionsTable.symbol })
+      .from(predictionsTable)
+      .where(and(eq(predictionsTable.userId, userId), isNull(predictionsTable.outcome)));
+    
+    for (const { symbol } of pendingSymbols) {
+       const price = getLatestPrice(symbol);
+       if (price) {
+         await autoEvaluatePending(userId, symbol, price);
+       } else {
+         const candles = await getCandles(symbol, 60, 1);
+         if (candles.length > 0) await autoEvaluatePending(userId, symbol, candles[0].close);
+       }
+    }
+
     const rows = await db
       .select({
         symbol: predictionsTable.symbol,
@@ -191,6 +274,7 @@ router.get("/predictions/accuracy", async (req, res) => {
         pending: sql<number>`count(*) filter (where ${predictionsTable.outcome} is null)::int`,
       })
       .from(predictionsTable)
+      .where(eq(predictionsTable.userId, userId))
       .groupBy(predictionsTable.symbol);
 
     res.json(
@@ -212,7 +296,8 @@ router.get("/predictions/accuracy", async (req, res) => {
   }
 });
 
-router.post("/predictions/auto", async (req, res) => {
+router.post("/predictions/auto", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const symbol = String(req.body?.symbol ?? "R_100");
 
   try {
@@ -224,16 +309,17 @@ router.post("/predictions/auto", async (req, res) => {
 
     const currentPrice = candles[candles.length - 1].close;
 
-    // Auto-evaluate any stale pending predictions
-    await autoEvaluatePending(symbol, currentPrice);
+    // Auto-evaluate any stale pending predictions for this user
+    await autoEvaluatePending(userId, symbol, currentPrice);
 
-    // Check for duplicate pending prediction within last 60 seconds
+    // Check for duplicate pending prediction within last 60 seconds for this user
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
     const [existingPrediction] = await db
       .select()
       .from(predictionsTable)
       .where(
         and(
+          eq(predictionsTable.userId, userId),
           eq(predictionsTable.symbol, symbol),
           isNull(predictionsTable.outcome),
           gt(predictionsTable.createdAt, oneMinuteAgo)
@@ -258,7 +344,7 @@ router.post("/predictions/auto", async (req, res) => {
     if (signals.noTradeZone) {
       res.json({
         generated: false,
-        reason: `Market conditions unclear â€” ${signals.marketState}. Confidence ${signals.confidence}% is below the minimum threshold. Signals conflict: ${signals.conflictingSignals.slice(0, 2).join("; ")}. Avoid directional bias.`,
+        reason: `Market conditions unclear — ${signals.marketState}. Confidence ${signals.confidence}% is below the minimum threshold. Signals conflict: ${signals.conflictingSignals.slice(0, 2).join("; ")}. Avoid directional bias.`,
         signals: {
           symbol,
           ...signals,
@@ -270,9 +356,13 @@ router.post("/predictions/auto", async (req, res) => {
     const direction: "rise" | "fall" = signals.bullishScore > 50 ? "rise" : "fall";
     const expiresAt = Math.floor(Date.now() / 1000) + 5 * 60; // 5 minutes expiry
 
+    console.log("AUTH_USER_ID", req.user?.id);
+    console.log("INSERT_USER_ID", userId);
+
     const [row] = await db
       .insert(predictionsTable)
       .values({
+        userId,
         symbol,
         direction,
         confidence: signals.confidence,
@@ -288,6 +378,8 @@ router.post("/predictions/auto", async (req, res) => {
         },
       })
       .returning();
+
+    console.log("INSERT_RESULT", row);
 
     res.json({
       generated: true,

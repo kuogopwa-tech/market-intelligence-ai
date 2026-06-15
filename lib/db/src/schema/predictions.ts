@@ -1,10 +1,13 @@
-import { pgTable, serial, text, real, integer, jsonb, timestamp, bigint } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, real, integer, jsonb, timestamp, bigint, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users.js";
 
 export const predictionsTable = pgTable("predictions", {
   id: serial("id").primaryKey(),
+  userId: uuid("user_id").references(() => usersTable.id).notNull(),
   symbol: text("symbol").notNull(),
+  interval: text("interval").notNull().default("1m"),
   direction: text("direction").notNull(),
   confidence: real("confidence").notNull(),
   entryPrice: real("entry_price").notNull(),

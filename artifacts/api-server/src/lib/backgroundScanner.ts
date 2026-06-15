@@ -1,4 +1,4 @@
-﻿import { db, checkDbConnection } from "@workspace/db";
+﻿﻿import { db, checkDbConnection } from "@workspace/db";
 import {
   learningMemoryTable,
   symbolTimelineTable,
@@ -13,6 +13,7 @@ import { classifyIndicatorPattern, computePatternStats } from "./patternEngine.j
 import { runAggregation } from "./aggregationEngine.js";
 import { detectEvolution } from "./evolutionEngine.js";
 import { refreshSymbolPersonality } from "./personalityRefresher.js";
+import { SYSTEM_USER_ID } from "./constants.js"; // Import SYSTEM_USER_ID
 import { logger } from "./logger.js";
 
 const SCAN_INTERVAL_MS = parseInt(
@@ -339,10 +340,16 @@ export async function runBackgroundScan(): Promise<void> {
     if (results.length > 0) {
       // Batch-write intelligence snapshots + symbol timeline in one transaction
       const runIdForInsert = scanRunId; // satisfies strict null checks in closure
+
+      // IMPORTANT: SYSTEM_USER_ID must be a valid UUID that exists in your usersTable.
+      // If SYSTEM_USER_ID is currently a string like "system", it needs to be
+      // replaced with a valid UUID for a dedicated system user.
+      // For example, you might fetch the ID of an 'admin' user or a specific 'system' user.
+      const systemValidUserId = SYSTEM_USER_ID; // Assuming SYSTEM_USER_ID is now a valid UUID
+
       await db.transaction(async (tx) => {
         await tx.insert(intelligenceSnapshotsTable).values(
           results.map((r) => ({
-            scanRunId: runIdForInsert,
             symbol: r.symbol,
             snapshotAt: now,
             hour,
@@ -362,6 +369,7 @@ export async function runBackgroundScan(): Promise<void> {
             bullishScore: Math.round(r.bullishScore),
             bearishScore: Math.round(r.bearishScore),
             noTradeZone: r.noTradeZone,
+            scanRunId: runIdForInsert, // Ensure scanRunId is included
             patternName: r.patternName,
           }))
         );
@@ -396,7 +404,7 @@ export async function runBackgroundScan(): Promise<void> {
         const sid = scanRunId;
         // Refresh behavioral personality from historical intelligence_snapshots (non-blocking)
         void Promise.allSettled(
-          results.map((r) => refreshSymbolPersonality(r.symbol, sid))
+          results.map((r) => refreshSymbolPersonality(r.symbol, sid, systemValidUserId)) // Pass systemValidUserId
         ).then((outcomes) => {
           const failCount = outcomes.filter((o) => o.status === "rejected").length;
           if (failCount > 0) logger.warn({ failCount }, "Some personality refreshes failed");
@@ -498,4 +506,3 @@ export function stopBackgroundScanner(): void {
   state.running = false;
   logger.info("Background scanner stopped");
 }
-

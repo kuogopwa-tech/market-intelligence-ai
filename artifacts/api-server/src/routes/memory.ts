@@ -1,23 +1,29 @@
 ﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import { learningMemoryTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { computePatternStats, generateLessons } from "../lib/patternEngine.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router: Router = Router();
 
-router.get("/memory", async (req, res) => {
+router.get("/memory", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const symbol = req.query.symbol ? String(req.query.symbol) : undefined;
   const limit = Math.min(parseInt(String(req.query.limit ?? "20"), 10), 100);
 
   try {
-    const query = db.select().from(learningMemoryTable);
-    const rows = await (symbol
-      ? query
-          .where(eq(learningMemoryTable.symbol, symbol))
-          .orderBy(desc(learningMemoryTable.createdAt))
-          .limit(limit)
-      : query.orderBy(desc(learningMemoryTable.createdAt)).limit(limit));
+    const filters = [eq(learningMemoryTable.userId, userId)];
+    if (symbol) {
+      filters.push(eq(learningMemoryTable.symbol, symbol));
+    }
+
+    const rows = await db
+      .select()
+      .from(learningMemoryTable)
+      .where(and(...filters))
+      .orderBy(desc(learningMemoryTable.createdAt))
+      .limit(limit);
 
     res.json(
       rows.map((r) => ({
@@ -36,17 +42,22 @@ router.get("/memory", async (req, res) => {
   }
 });
 
-router.get("/memory/summary", async (req, res) => {
+router.get("/memory/summary", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const symbol = req.query.symbol ? String(req.query.symbol) : undefined;
 
   try {
-    const query = db.select().from(learningMemoryTable);
-    const rows = await (symbol
-      ? query
-          .where(eq(learningMemoryTable.symbol, symbol))
-          .orderBy(desc(learningMemoryTable.createdAt))
-          .limit(50)
-      : query.orderBy(desc(learningMemoryTable.createdAt)).limit(50));
+    const filters = [eq(learningMemoryTable.userId, userId)];
+    if (symbol) {
+      filters.push(eq(learningMemoryTable.symbol, symbol));
+    }
+
+    const rows = await db
+      .select()
+      .from(learningMemoryTable)
+      .where(and(...filters))
+      .orderBy(desc(learningMemoryTable.createdAt))
+      .limit(50);
 
     const totalPatterns = rows.length;
     const withAccuracy = rows.filter((r) => r.accuracy !== null);
@@ -81,7 +92,7 @@ router.get("/memory/summary", async (req, res) => {
     const recentLessons = lessons.slice(0, 4).map((l) => l.lesson);
 
     if (totalPatterns === 0) {
-      recentLessons.push("No predictions recorded yet â€” start tracking to build memory");
+      recentLessons.push("No predictions recorded yet — start tracking to build memory");
     }
 
     res.json({ totalPatterns, avgAccuracy, topPatterns, recentLessons });
@@ -91,17 +102,22 @@ router.get("/memory/summary", async (req, res) => {
   }
 });
 
-router.get("/memory/patterns", async (req, res) => {
+router.get("/memory/patterns", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const symbol = req.query.symbol ? String(req.query.symbol) : undefined;
 
   try {
-    const query = db.select().from(learningMemoryTable);
-    const rows = await (symbol
-      ? query
-          .where(eq(learningMemoryTable.symbol, symbol))
-          .orderBy(desc(learningMemoryTable.createdAt))
-          .limit(200)
-      : query.orderBy(desc(learningMemoryTable.createdAt)).limit(200));
+    const filters = [eq(learningMemoryTable.userId, userId)];
+    if (symbol) {
+      filters.push(eq(learningMemoryTable.symbol, symbol));
+    }
+
+    const rows = await db
+      .select()
+      .from(learningMemoryTable)
+      .where(and(...filters))
+      .orderBy(desc(learningMemoryTable.createdAt))
+      .limit(200);
 
     const memoriesForStats = rows.map((r) => ({
       patternType: r.patternType,
@@ -119,17 +135,22 @@ router.get("/memory/patterns", async (req, res) => {
   }
 });
 
-router.get("/memory/lessons", async (req, res) => {
+router.get("/memory/lessons", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const symbol = req.query.symbol ? String(req.query.symbol) : undefined;
 
   try {
-    const query = db.select().from(learningMemoryTable);
-    const rows = await (symbol
-      ? query
-          .where(eq(learningMemoryTable.symbol, symbol))
-          .orderBy(desc(learningMemoryTable.createdAt))
-          .limit(200)
-      : query.orderBy(desc(learningMemoryTable.createdAt)).limit(200));
+    const filters = [eq(learningMemoryTable.userId, userId)];
+    if (symbol) {
+      filters.push(eq(learningMemoryTable.symbol, symbol));
+    }
+
+    const rows = await db
+      .select()
+      .from(learningMemoryTable)
+      .where(and(...filters))
+      .orderBy(desc(learningMemoryTable.createdAt))
+      .limit(200);
 
     const memoriesForLessons = rows.map((r) => ({
       patternType: r.patternType,

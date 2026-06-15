@@ -1,4 +1,4 @@
-﻿/**
+﻿﻿/**
  * personalityRefresher.ts
  *
  * Derives and persists a behavioral personality label for a symbol by aggregating
@@ -14,6 +14,7 @@ import { learningMemoryTable, intelligenceSnapshotsTable } from "@workspace/db";
 import { gte, eq, and } from "drizzle-orm";
 import { isSystemReset } from "./backgroundScanner.js";
 import { logger } from "./logger.js";
+import { SYSTEM_USER_ID } from "./constants.js";
 
 type PersonalityLabel =
   | "Clean Mover"
@@ -75,7 +76,8 @@ function derivePersonalityFromHistory(rows: {
  */
 export async function refreshSymbolPersonality(
   symbol: string,
-  scanRunId: number | null
+  scanRunId: number | null,
+  systemValidUserId: string // Added systemValidUserId parameter
 ): Promise<void> {
   // Skip personality refresh if system reset is active
   const resetState = isSystemReset();
@@ -113,6 +115,7 @@ export async function refreshSymbolPersonality(
     const avgRisk    = Math.round(rows.reduce((s, r) => s + r.riskScore, 0) / rows.length);
 
     await db.insert(learningMemoryTable).values({
+      userId: systemValidUserId, // Replaced SYSTEM_USER_ID with systemValidUserId
       symbol,
       patternType: "market_personality",
       patternData: {

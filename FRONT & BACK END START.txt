@@ -12,4 +12,6 @@ DB READ
 
 pnpm --filter "@workspace/db" exec drizzle-kit studio
 
-code PROJECT_ARCHITECTURE.md
+code PROJECT_ARCHITECTURE.
+
+vercel --prod --force --archive=tgz

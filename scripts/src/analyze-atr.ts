@@ -1,7 +1,12 @@
-// @ts-ignore
-import { getCandles, SUPPORTED_SYMBOLS } from "../../artifacts/api-server/src/lib/derivWs.js";
-// @ts-ignore
-import { calcATR } from "../../artifacts/api-server/src/lib/indicators.js";
+/**
+ * This script is part of the standalone `scripts` TypeScript project (rootDir = "src").
+ * Do NOT import TS sources from `artifacts/api-server/src/**` because TS6059 will fail typecheck
+ * due to rootDir boundaries.
+ *
+ * Instead, load from api-server's build output at runtime.
+ */
+const { getCandles, SUPPORTED_SYMBOLS } = require("../../artifacts/api-server/dist/lib/derivWs.js") as any;
+const { calcATR } = require("../../artifacts/api-server/dist/lib/indicators.js") as any;
 
 interface Candle {
   epoch: number;

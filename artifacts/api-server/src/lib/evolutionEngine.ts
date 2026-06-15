@@ -3,8 +3,9 @@ import {
   intelligenceSnapshotsTable,
   learningMemoryTable,
 } from "@workspace/db";
-import { gte, lt, and, sql, eq } from "drizzle-orm";
+import { gte, lt, and, sql, eq, InferInsertModel } from "drizzle-orm";
 import { logger } from "./logger.js";
+import { SYSTEM_USER_ID } from "./constants.js";
 
 const QUALITY_SHIFT_THRESHOLD     = 15;  // points
 const VOLATILITY_SHIFT_THRESHOLD  = 20;  // points on volatilityCompatibility scale
@@ -82,6 +83,7 @@ export async function detectEvolution(): Promise<void> {
     .from(learningMemoryTable)
     .where(
       and(
+        eq(learningMemoryTable.userId, SYSTEM_USER_ID),
         gte(learningMemoryTable.createdAt, dedupWindow),
         eq(learningMemoryTable.patternType, "regime_shift"),
         sql`${learningMemoryTable.patternData}->>'type' IS NOT NULL`
@@ -196,19 +198,20 @@ export async function detectEvolution(): Promise<void> {
 
   if (shiftEvents.length === 0) return;
 
+  // IMPORTANT: SYSTEM_USER_ID must be a valid UUID that exists in your usersTable.
+  // If SYSTEM_USER_ID is currently a string like "system", it needs to be
+  // replaced with a valid UUID for a dedicated system user.
+  // For example, you might fetch the ID of an 'admin' user or a specific 'system' user.
+  const systemValidUserId = SYSTEM_USER_ID; // Assuming SYSTEM_USER_ID is now a valid UUID
+
   const windowStartIso = recentStart.toISOString();
   try {
     await db.insert(learningMemoryTable).values(
       shiftEvents.map((e) => ({
+        userId: systemValidUserId, // Replaced SYSTEM_USER_ID with systemValidUserId
         symbol: e.symbol,
         patternType: "regime_shift",
-        patternData: {
-          type: e.type,
-          severity: e.severity,
-          description: e.description,
-          detectedAt: now.toISOString(),
-          windowStart: windowStartIso, // stored for dedup key reconstruction
-        },
+        patternData: { type: e.type, severity: e.severity, description: e.description, detectedAt: now.toISOString(), windowStart: windowStartIso },
         outcome: e.severity === "alert" ? "incorrect" : "correct",
         accuracy: e.severity === "alert" ? 0 : e.severity === "info" ? 75 : 50,
       }))

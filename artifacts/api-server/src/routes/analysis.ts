@@ -1,7 +1,7 @@
-﻿import { Router } from "express";
+﻿﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import { aiAnalysisTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { getCandles } from "../lib/derivWs.js";
 import { calculateAllIndicators } from "../lib/indicators.js";
 import { generateAnalysis } from "../lib/aiService.js";
@@ -9,15 +9,21 @@ import { mergeSignals, computeSignalQuality } from "../lib/signalEngine.js";
 import { classifyIndicatorPattern, computePatternStats } from "../lib/patternEngine.js";
 import { learningMemoryTable } from "@workspace/db";
 import { GenerateAnalysisBody } from "@workspace/api-zod";
+import { requireAuth } from "../middleware/auth.js";
 
 const router: Router = Router();
 
-async function getMemoryContext(symbol: string): Promise<string> {
+async function getMemoryContext(symbol: string, userId: string): Promise<string> {
   try {
     const memories = await db
       .select()
       .from(learningMemoryTable)
-      .where(eq(learningMemoryTable.symbol, symbol))
+      .where(
+        and(
+          eq(learningMemoryTable.symbol, symbol),
+          eq(learningMemoryTable.userId, userId)
+        )
+      )
       .orderBy(desc(learningMemoryTable.createdAt))
       .limit(8);
 
@@ -55,7 +61,8 @@ function formatRow(row: typeof aiAnalysisTable.$inferSelect) {
   };
 }
 
-router.post("/analysis/generate", async (req, res) => {
+router.post("/analysis/generate", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const parsed = GenerateAnalysisBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
@@ -72,13 +79,17 @@ router.post("/analysis/generate", async (req, res) => {
 
     const indicators = calculateAllIndicators(symbol, candles);
     const signals = mergeSignals(indicators);
-    const memoryCtx = await getMemoryContext(symbol);
+    const memoryCtx = await getMemoryContext(symbol, userId);
     const result = await generateAnalysis(symbol, indicators, memoryCtx, forceRefresh ?? false);
 
     if (!result.cached) {
+      console.log("AUTH_USER_ID", req.user?.id);
+      console.log("INSERT_USER_ID", userId);
+
       const [saved] = await db
         .insert(aiAnalysisTable)
         .values({
+          userId,
           symbol,
           reasoning: result.reasoning,
           riseProbability: result.riseProbability,
@@ -97,6 +108,8 @@ router.post("/analysis/generate", async (req, res) => {
         })
         .returning();
 
+      console.log("INSERT_RESULT", saved);
+
       res.json({
         id: saved.id,
         symbol,
@@ -112,7 +125,12 @@ router.post("/analysis/generate", async (req, res) => {
       const latest = await db
         .select()
         .from(aiAnalysisTable)
-        .where(eq(aiAnalysisTable.symbol, symbol))
+        .where(
+          and(
+            eq(aiAnalysisTable.symbol, symbol),
+            eq(aiAnalysisTable.userId, userId)
+          )
+        )
         .orderBy(desc(aiAnalysisTable.createdAt))
         .limit(1);
 
@@ -136,13 +154,19 @@ router.post("/analysis/generate", async (req, res) => {
   }
 });
 
-router.get("/analysis/latest", async (req, res) => {
+router.get("/analysis/latest", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const symbol = String(req.query.symbol ?? "R_100");
   try {
     const rows = await db
       .select()
       .from(aiAnalysisTable)
-      .where(eq(aiAnalysisTable.symbol, symbol))
+      .where(
+        and(
+          eq(aiAnalysisTable.symbol, symbol),
+          eq(aiAnalysisTable.userId, userId)
+        )
+      )
       .orderBy(desc(aiAnalysisTable.createdAt))
       .limit(1);
 
@@ -157,7 +181,8 @@ router.get("/analysis/latest", async (req, res) => {
   }
 });
 
-router.get("/analysis/history", async (req, res) => {
+router.get("/analysis/history", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const symbol = String(req.query.symbol ?? "R_100");
   const limit = Math.min(parseInt(String(req.query.limit ?? "20"), 10), 100);
 
@@ -165,7 +190,12 @@ router.get("/analysis/history", async (req, res) => {
     const rows = await db
       .select()
       .from(aiAnalysisTable)
-      .where(eq(aiAnalysisTable.symbol, symbol))
+      .where(
+        and(
+          eq(aiAnalysisTable.symbol, symbol),
+          eq(aiAnalysisTable.userId, userId)
+        )
+      )
       .orderBy(desc(aiAnalysisTable.createdAt))
       .limit(limit);
 
@@ -176,7 +206,8 @@ router.get("/analysis/history", async (req, res) => {
   }
 });
 
-router.get("/analysis/quality", async (req, res) => {
+router.get("/analysis/quality", requireAuth(), async (req, res) => {
+  const userId = req.user!.id;
   const symbol = String(req.query.symbol ?? "R_100");
   const granularity = parseInt(String(req.query.granularity ?? "60"), 10);
 
@@ -195,7 +226,12 @@ router.get("/analysis/quality", async (req, res) => {
     const memRows = await db
       .select()
       .from(learningMemoryTable)
-      .where(eq(learningMemoryTable.symbol, symbol))
+      .where(
+        and(
+          eq(learningMemoryTable.symbol, symbol),
+          eq(learningMemoryTable.userId, userId)
+        )
+      )
       .orderBy(desc(learningMemoryTable.createdAt))
       .limit(100);
 
@@ -251,7 +287,7 @@ router.get("/analysis/quality", async (req, res) => {
   }
 });
 
-router.get("/analysis/signals", async (req, res) => {
+router.get("/analysis/signals", requireAuth(), async (req, res) => {
   const symbol = String(req.query.symbol ?? "R_100");
   const granularity = parseInt(String(req.query.granularity ?? "60"), 10);
 

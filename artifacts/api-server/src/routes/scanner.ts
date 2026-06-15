@@ -79,6 +79,8 @@ router.get("/scanner/scan", async (req, res) => {
       expirySeconds: number; historicalBoost: number;
       patternName: string; historicalSuccessRate: number; historicalTrades: number;
       priorityLevel: string;
+      // Direction lock output (EMA-only) - one symbol = one final direction
+      finalDirection: string;
     };
 
     const scanTasks: Promise<ScanResult | null>[] = SUPPORTED_SYMBOLS.map(async (sym) => {

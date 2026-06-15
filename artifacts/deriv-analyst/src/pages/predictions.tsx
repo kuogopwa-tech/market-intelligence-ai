@@ -13,21 +13,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
-import {
-  Check,
-  X,
-  Clock,
-  ArrowUpRight,
-  ArrowDownRight,
-  Zap,
-  ShieldAlert,
-} from "lucide-react";
-import { useState } from "react";
+import { Check, X, Clock, ArrowUpRight, ArrowDownRight, Zap, ShieldAlert } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function Predictions() {
   const { selectedSymbol } = useAppStore();
   const queryClient = useQueryClient();
+
   const [autoResult, setAutoResult] = useState<{ generated: boolean; reason: string } | null>(null);
+  const [buttonNudge, setButtonNudge] = useState(false);
+  const [autoRefreshOn, setAutoRefreshOn] = useState(false);
+  const [bannerShift, setBannerShift] = useState(false);
 
   const { data: predictions, isLoading: isLoadingPredictions } = useGetPredictions(
     { symbol: selectedSymbol, limit: 50 },
@@ -57,12 +53,40 @@ export default function Predictions() {
     );
   };
 
+  // Auto refresh: keep prediction history + accuracy updated in real time.
+  useEffect(() => {
+    if (!autoRefreshOn) return;
+
+    const interval = window.setInterval(() => {
+      queryClient.invalidateQueries({
+        queryKey: getGetPredictionsQueryKey({ symbol: selectedSymbol, limit: 50 }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["getPredictionAccuracy"] });
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [autoRefreshOn, queryClient, selectedSymbol]);
+
+  useEffect(() => {
+    if (!autoResult) {
+      setBannerShift(false);
+      return;
+    }
+    // Show first, then slide left to create space for the header buttons.
+    setBannerShift(true);
+    const t = window.setTimeout(() => setBannerShift(false), 3500);
+    return () => window.clearTimeout(t);
+  }, [autoResult]);
+
   const handleAutoPrediction = () => {
     autoPredictionMutation.mutate(
       { data: { symbol: selectedSymbol } },
       {
         onSuccess: (result) => {
           setAutoResult({ generated: result.generated, reason: result.reason });
+          setButtonNudge(true);
+          // Bounce down to ensure any toast/popup doesn't intercept clicks; then restore.
+          window.setTimeout(() => setButtonNudge(false), 2500);
           queryClient.invalidateQueries({
             queryKey: getGetPredictionsQueryKey({ symbol: selectedSymbol, limit: 50 }),
           });
@@ -83,7 +107,10 @@ export default function Predictions() {
     }
     if (outcome === "incorrect") {
       return (
-        <Badge variant="destructive" className="bg-destructive/20 text-destructive border-destructive/50 gap-1">
+        <Badge
+          variant="destructive"
+          className="bg-destructive/20 text-destructive border-destructive/50 gap-1"
+        >
           <X className="h-3 w-3" /> Incorrect
         </Badge>
       );
@@ -95,49 +122,66 @@ export default function Predictions() {
     );
   };
 
-  const accuracyPct = symbolStats
-    ? symbolStats.accuracy.toFixed(1)
-    : "0.0";
+  const accuracyPct = symbolStats ? symbolStats.accuracy.toFixed(1) : "0.0";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Predictions & Accuracy</h1>
-          <p className="text-sm text-muted-foreground">
-            Performance tracking for {selectedSymbol}
-          </p>
+          <p className="text-sm text-muted-foreground">Performance tracking for {selectedSymbol}</p>
         </div>
-        <Button
-          onClick={handleAutoPrediction}
-          disabled={autoPredictionMutation.isPending}
-          className="gap-2"
-          variant="default"
-        >
-          <Zap className={`h-4 w-4 ${autoPredictionMutation.isPending ? "animate-pulse" : ""}`} />
-          {autoPredictionMutation.isPending ? "Analyzing..." : "Auto-Generate Prediction"}
-        </Button>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            onClick={() => setAutoRefreshOn((v) => !v)}
+            variant={autoRefreshOn ? "default" : "outline"}
+            disabled={autoPredictionMutation.isPending}
+            className="gap-2"
+          >
+            <Clock className={`h-4 w-4 ${autoRefreshOn ? "animate-pulse" : ""}`} />
+            {autoRefreshOn ? "Auto Refresh: ON" : "Auto Refresh"}
+          </Button>
+
+          <div
+            className={`transition-transform duration-500 ease-out ${
+              buttonNudge ? "translate-y-4 animate-bounce" : "translate-y-0"
+            }`}
+          >
+            <Button
+              onClick={handleAutoPrediction}
+              disabled={autoPredictionMutation.isPending}
+              className="gap-2"
+              variant="default"
+            >
+              <Zap className={`h-4 w-4 ${autoPredictionMutation.isPending ? "animate-pulse" : ""}`} />
+              {autoPredictionMutation.isPending ? "Analyzing..." : "Auto-Generate Prediction"}
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Auto-prediction result banner */}
       {autoResult && (
         <div
-          className={`flex items-start gap-3 p-4 rounded-lg border text-sm ${
-            autoResult.generated
-              ? "bg-green-500/10 border-green-500/20"
-              : "bg-orange-500/10 border-orange-500/20"
-          }`}
+          className={`flex items-start gap-2 p-2 rounded-lg border text-xs transition-transform duration-500 ease-out ${
+            autoResult.generated ? "bg-green-500/10 border-green-500/20" : "bg-orange-500/10 border-orange-500/20"
+          } ${bannerShift ? "-translate-x-32" : "translate-x-0"}`}
         >
           {autoResult.generated ? (
-            <Check className="h-5 w-5 text-green-400 shrink-0 mt-0.5" />
+            <Check className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
           ) : (
-            <ShieldAlert className="h-5 w-5 text-orange-400 shrink-0 mt-0.5" />
+            <ShieldAlert className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
           )}
           <div>
-            <p className={`font-medium ${autoResult.generated ? "text-green-400" : "text-orange-400"}`}>
+            <p
+              className={`font-medium ${
+                autoResult.generated ? "text-green-400" : "text-orange-400"
+              }`}
+            >
               {autoResult.generated ? "Prediction Generated" : "No-Trade Signal"}
             </p>
-            <p className="text-muted-foreground mt-0.5 text-xs">{autoResult.reason}</p>
+            <p className="text-muted-foreground mt-0.5 text-[11px] leading-tight">{autoResult.reason}</p>
           </div>
         </div>
       )}
@@ -164,9 +208,7 @@ export default function Predictions() {
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center space-y-1">
               <span className="text-sm text-muted-foreground">Correct Calls</span>
-              <span className="text-3xl font-bold text-green-500">
-                {symbolStats?.correct || 0}
-              </span>
+              <span className="text-3xl font-bold text-green-500">{symbolStats?.correct || 0}</span>
             </div>
           </CardContent>
         </Card>
@@ -174,9 +216,7 @@ export default function Predictions() {
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center space-y-1">
               <span className="text-sm text-muted-foreground">Pending Calls</span>
-              <span className="text-3xl font-bold text-yellow-500">
-                {symbolStats?.pending || 0}
-              </span>
+              <span className="text-3xl font-bold text-yellow-500">{symbolStats?.pending || 0}</span>
             </div>
           </CardContent>
         </Card>
@@ -227,9 +267,7 @@ export default function Predictions() {
                           <span className="capitalize">{pred.direction}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {pred.entryPrice.toFixed(4)}
-                      </TableCell>
+                      <TableCell className="font-mono text-xs">{pred.entryPrice.toFixed(4)}</TableCell>
                       <TableCell>
                         <span className="font-medium">{pred.confidence.toFixed(0)}%</span>
                       </TableCell>
@@ -249,26 +287,24 @@ export default function Predictions() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-xs border-green-500/50 hover:bg-green-500/10 text-green-500"
+                              className="border-green-500/40 text-green-400 hover:bg-green-500/10"
                               onClick={() => handleUpdateOutcome(pred.id, "correct")}
+                              disabled={updateOutcomeMutation.isPending}
                             >
-                              Win
+                              <Check className="h-4 w-4" />
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-xs border-destructive/50 hover:bg-destructive/10 text-destructive"
+                              className="border-destructive/40 text-destructive hover:bg-destructive/10"
                               onClick={() => handleUpdateOutcome(pred.id, "incorrect")}
+                              disabled={updateOutcomeMutation.isPending}
                             >
-                              Loss
+                              <X className="h-4 w-4" />
                             </Button>
                           </div>
                         )}
-                        {pred.outcome && pred.resolvedAt && (
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {format(new Date(pred.resolvedAt * 1000), "HH:mm")}
-                          </span>
-                        )}
+                        {pred.outcome && <span className="text-muted-foreground text-xs">—</span>}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -276,13 +312,7 @@ export default function Predictions() {
               </Table>
             </div>
           ) : (
-            <div className="text-center py-10 text-muted-foreground">
-              <Zap className="h-8 w-8 mx-auto mb-3 opacity-20" />
-              <p>No predictions recorded yet.</p>
-              <p className="text-xs mt-1 opacity-70">
-                Click "Auto-Generate Prediction" to let the signal engine create one.
-              </p>
-            </div>
+            <p className="text-sm text-muted-foreground">No predictions available.</p>
           )}
         </CardContent>
       </Card>

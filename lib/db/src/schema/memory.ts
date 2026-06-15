@@ -1,9 +1,11 @@
-import { pgTable, serial, text, real, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, real, jsonb, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users.js";
 
 export const learningMemoryTable = pgTable("learning_memory", {
   id: serial("id").primaryKey(),
+  userId: uuid("user_id").references(() => usersTable.id).notNull(),
   symbol: text("symbol").notNull(),
   patternType: text("pattern_type").notNull(),
   patternData: jsonb("pattern_data").notNull().default({}),
