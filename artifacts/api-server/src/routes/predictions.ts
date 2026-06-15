@@ -1,11 +1,11 @@
-﻿import { Router } from "express";
+﻿﻿import { Router } from "express";
 import { db } from "@workspace/db";
 import { predictionsTable, learningMemoryTable } from "@workspace/db";
 import { eq, desc, sql, isNull, and } from "drizzle-orm";
 import { CreatePredictionBody, UpdatePredictionOutcomeBody, UpdatePredictionOutcomeParams } from "@workspace/api-zod";
 import { getCandles, getLatestPrice } from "../lib/derivWs.js";
 import { calculateAllIndicators } from "../lib/indicators.js";
-import { mergeSignals } from "../lib/signalEngine.js";
+import { mergeSignals, computeSignalQuality } from "../lib/signalEngine.js";
 import { classifyIndicatorPattern } from "../lib/patternEngine.js";
 import { requireAuth } from "../middleware/auth.js";
 import { logger } from "../lib/logger.js";
@@ -324,7 +324,7 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
   const userId = req.user!.id;
   const symbol = String(req.body?.symbol ?? "R_100");
 
-  // 🔥 RATE LIMIT CHECK
+  // RATE LIMIT CHECK
   const rateLimit = checkRateLimit(userId, symbol);
   if (!rateLimit.allowed) {
     return res.status(429).json({
@@ -369,14 +369,16 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
 
     const indicators = calculateAllIndicators(symbol, candles);
     const signals = mergeSignals(indicators);
+    const signalQuality = computeSignalQuality(signals, indicators);
     const pattern = classifyIndicatorPattern(indicators);
 
-    // 🔥 FIXED: Correct No-Trade Zone response
+    // No-Trade Zone response (using signalQuality for display properties)
     if (signals.noTradeZone) {
       return res.status(200).json({
         generated: false,
-        reason: `⚠️ No-Trade Zone Detected: ${signals.marketState} market with ${signals.riskLevel?.toLowerCase() || "moderate"} risk. ${signals.marketCleanliness || "Mixed"} conditions.`,
+        reason: `⚠️ No-Trade Zone Detected: ${signals.marketState} market with ${signals.riskLevel?.toLowerCase() || "moderate"} risk. ${signalQuality.marketCleanliness || "Mixed"} conditions.`,
         signals,
+        signalQuality,
       });
     }
 
@@ -401,12 +403,20 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
         indicators: {
           ...indicators,
           patternName: pattern.name,
+          quality: {
+            cleanSignalScore: signalQuality.cleanSignalScore,
+            marketCleanliness: signalQuality.marketCleanliness,
+            setupRarity: signalQuality.setupRarity,
+            alertType: signalQuality.alertType,
+            confidenceWeight: signalQuality.confidenceWeight,
+            riskScore: signalQuality.riskScore,
+            indicatorAlignment: signalQuality.indicatorAlignment,
+            momentumConfirmation: signalQuality.momentumConfirmation,
+            volatilityCompatibility: signalQuality.volatilityCompatibility,
+          },
           signals: {
             bullishScore: signals.bullishScore,
             bearishScore: signals.bearishScore,
-            marketCleanliness: signals.marketCleanliness,
-            setupRarity: signals.setupRarity,
-            alertType: signals.alertType,
             supportingSignals: signals.supportingSignals,
             conflictingSignals: signals.conflictingSignals,
           },
@@ -421,13 +431,15 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
       confidence: finalConfidence,
       entryPrice: currentPrice,
       marketState: signals.marketState,
+      cleanSignalScore: signalQuality.cleanSignalScore,
       predictionId: row.id 
     }, "Auto prediction generated successfully");
 
     return res.status(201).json({
       generated: true,
-      reason: `✓ ${direction.toUpperCase()} prediction generated with ${finalConfidence}% confidence based on ${signals.marketCleanliness} market conditions.`,
+      reason: `✓ ${direction.toUpperCase()} prediction generated with ${finalConfidence}% confidence based on ${signalQuality.marketCleanliness} market conditions.`,
       prediction: formatPrediction(row),
+      signalQuality,
     });
   } catch (err: any) {
     // Handle duplicate key error gracefully
