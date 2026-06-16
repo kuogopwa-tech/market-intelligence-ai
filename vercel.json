@@ -1,13 +1,17 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
+﻿{
+  "version": 2,
   "framework": null,
   "buildCommand": "pnpm run build:vercel",
   "outputDirectory": "artifacts/deriv-analyst/dist/public",
   "installCommand": "pnpm install",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/api/(.*)",
+      "dest": "/api/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
