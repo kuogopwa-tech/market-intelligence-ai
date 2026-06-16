@@ -1,4 +1,4 @@
-import { useAppStore } from "../store";
+﻿import { useAppStore } from "../store";
 import {
   useGetPredictions,
   getGetPredictionsQueryKey,
@@ -21,7 +21,7 @@ export default function Predictions() {
   const { selectedSymbol } = useAppStore();
   const queryClient = useQueryClient();
 
-  const [autoResult, setAutoResult] = useState<{ generated: boolean; reason: string; predictionId?: number } | null>(null);
+  const [autoResult, setAutoResult] = useState<{ generated: boolean; reason: string; prediction?: any } | null>(null);
   const [autoRefreshOn, setAutoRefreshOn] = useState(false);
   const [lastPredictionTime, setLastPredictionTime] = useState<Record<string, number>>({});
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -115,11 +115,11 @@ export default function Predictions() {
       {
         onSuccess: (result) => {
           setLastPredictionTime(prev => ({ ...prev, [selectedSymbol]: Date.now() }));
-          setAutoResult({ 
-            generated: result.generated, 
-            reason: result.reason,
-            predictionId: result.predictionId 
-          });
+        setAutoResult({ 
+  generated: result.generated, 
+  reason: result.reason,
+  prediction: result.prediction 
+});
           setTimeout(() => {
             refetchPredictions();
             refetchStats();
@@ -231,7 +231,7 @@ export default function Predictions() {
             )}
             <div className="flex-1">
               <p className={`font-semibold ${autoResult.generated ? "text-green-400" : "text-amber-400"}`}>
-                {autoResult.generated ? "✓ Prediction Created" : "⛔ No-Trade Signal"}
+                {autoResult.generated ? "âœ“ Prediction Created" : "â›” No-Trade Signal"}
               </p>
               <p className="text-muted-foreground text-sm mt-0.5">{autoResult.reason}</p>
             </div>
@@ -358,7 +358,7 @@ export default function Predictions() {
                               {pred.marketState}
                             </Badge>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs">â€”</span>
                           )}
                         </TableCell>
                         <TableCell>{renderOutcomeBadge(pred.outcome)}</TableCell>
@@ -385,7 +385,7 @@ export default function Predictions() {
                               </Button>
                             </div>
                           )}
-                          {pred.outcome && <span className="text-muted-foreground text-xs">—</span>}
+                          {pred.outcome && <span className="text-muted-foreground text-xs">â€”</span>}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -403,7 +403,7 @@ export default function Predictions() {
                   onClick={handleAutoPrediction}
                   className="mt-2"
                 >
-                  Generate first prediction →
+                  Generate first prediction â†’
                 </Button>
               </div>
             )}
