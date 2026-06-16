@@ -115,17 +115,25 @@ export default function Predictions() {
       {
         onSuccess: (result) => {
           setLastPredictionTime(prev => ({ ...prev, [selectedSymbol]: Date.now() }));
-        setAutoResult({ 
-  generated: result.generated, 
-  reason: result.reason,
-  prediction: result.prediction 
-});
+          
+          // Safety: ensure result exists and has expected fields
+          const generated = result?.generated ?? false;
+          const reason = result?.reason ?? "Prediction generated, but no details available.";
+          const prediction = result?.prediction ?? null;
+
+          setAutoResult({ 
+            generated, 
+            reason,
+            prediction: prediction ?? undefined
+          });
+
           setTimeout(() => {
             refetchPredictions();
             refetchStats();
           }, 500);
         },
         onError: (error: any) => {
+          console.error("[Predictions] Auto-prediction error:", error);
           setAutoResult({
             generated: false,
             reason: error?.message || "Failed to generate prediction. Please try again."
@@ -163,7 +171,24 @@ export default function Predictions() {
     return "text-orange-500";
   };
 
-  const accuracyPct = symbolStats ? symbolStats.accuracy.toFixed(1) : uniqueAccuracy.toFixed(1);
+  // SAFE helper to format numbers with fallback
+  const safeFormat = (value: any, decimals: number = 2): string => {
+    const num = parseFloat(value);
+    return isNaN(num) ? "0.00" : num.toFixed(decimals);
+  };
+
+  const accuracyPct = symbolStats ? safeFormat(symbolStats.accuracy) : safeFormat(uniqueAccuracy);
+
+  // Safe access to prediction properties
+  const safePrediction = (pred: any) => ({
+    ...pred,
+    confidence: pred.confidence ?? 0,
+    entryPrice: pred.entryPrice ?? 0,
+    createdAt: pred.createdAt ?? 0,
+    direction: pred.direction ?? "unknown",
+    marketState: pred.marketState ?? null,
+    outcome: pred.outcome ?? null,
+  });
 
   return (
     <TooltipProvider>
@@ -231,7 +256,7 @@ export default function Predictions() {
             )}
             <div className="flex-1">
               <p className={`font-semibold ${autoResult.generated ? "text-green-400" : "text-amber-400"}`}>
-                {autoResult.generated ? "âœ“ Prediction Created" : "â›” No-Trade Signal"}
+                {autoResult.generated ? "✓ Prediction Created" : "⚠️ No-Trade Signal"}
               </p>
               <p className="text-muted-foreground text-sm mt-0.5">{autoResult.reason}</p>
             </div>
@@ -244,7 +269,7 @@ export default function Predictions() {
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-2">
                 <span className="text-sm text-muted-foreground">Total Predictions</span>
-                <span className="text-4xl font-bold">{symbolStats?.total || uniqueTotal}</span>
+                <span className="text-4xl font-bold">{symbolStats?.total ?? uniqueTotal}</span>
               </div>
             </CardContent>
           </Card>
@@ -269,7 +294,7 @@ export default function Predictions() {
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-2">
                 <span className="text-sm text-muted-foreground">Correct Calls</span>
-                <span className="text-4xl font-bold text-green-500">{symbolStats?.correct || uniqueCorrect}</span>
+                <span className="text-4xl font-bold text-green-500">{symbolStats?.correct ?? uniqueCorrect}</span>
               </div>
             </CardContent>
           </Card>
@@ -278,7 +303,7 @@ export default function Predictions() {
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-2">
                 <span className="text-sm text-muted-foreground">Pending Calls</span>
-                <span className="text-4xl font-bold text-yellow-500">{symbolStats?.pending || uniquePending}</span>
+                <span className="text-4xl font-bold text-yellow-500">{symbolStats?.pending ?? uniquePending}</span>
               </div>
             </CardContent>
           </Card>
@@ -317,78 +342,81 @@ export default function Predictions() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {uniquePredictions.slice(0, 25).map((pred) => (
-                      <TableRow key={pred.id} className="border-border hover:bg-muted/20 transition-colors">
-                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                          {format(new Date(pred.createdAt * 1000), "dd MMM HH:mm:ss")}
-                        </TableCell>
-                        <TableCell>
-                          <div
-                            className={`flex items-center gap-1.5 font-semibold ${
-                              pred.direction === "rise" ? "text-green-500" : "text-destructive"
-                            }`}
-                          >
-                            {pred.direction === "rise" ? (
-                              <ArrowUpRight className="h-4 w-4" />
+                    {uniquePredictions.slice(0, 25).map((pred) => {
+                      const safe = safePrediction(pred);
+                      return (
+                        <TableRow key={safe.id} className="border-border hover:bg-muted/20 transition-colors">
+                          <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(safe.createdAt * 1000), "dd MMM HH:mm:ss")}
+                          </TableCell>
+                          <TableCell>
+                            <div
+                              className={`flex items-center gap-1.5 font-semibold ${
+                                safe.direction === "rise" ? "text-green-500" : "text-destructive"
+                              }`}
+                            >
+                              {safe.direction === "rise" ? (
+                                <ArrowUpRight className="h-4 w-4" />
+                              ) : (
+                                <ArrowDownRight className="h-4 w-4" />
+                              )}
+                              <span className="capitalize">{safe.direction}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm font-medium">
+                            {safe.entryPrice.toFixed(4)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${getConfidenceColor(safe.confidence).replace("text-", "bg-")}`}
+                                  style={{ width: `${safe.confidence}%` }}
+                                />
+                              </div>
+                              <span className={`font-mono text-sm font-medium ${getConfidenceColor(safe.confidence)}`}>
+                                {safe.confidence.toFixed(0)}%
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {safe.marketState ? (
+                              <Badge variant="secondary" className="text-xs font-normal">
+                                {safe.marketState}
+                              </Badge>
                             ) : (
-                              <ArrowDownRight className="h-4 w-4" />
+                              <span className="text-muted-foreground text-xs">—</span>
                             )}
-                            <span className="capitalize">{pred.direction}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm font-medium">
-                          {pred.entryPrice.toFixed(4)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full ${getConfidenceColor(pred.confidence).replace("text-", "bg-")}`}
-                                style={{ width: `${pred.confidence}%` }}
-                              />
-                            </div>
-                            <span className={`font-mono text-sm font-medium ${getConfidenceColor(pred.confidence)}`}>
-                              {pred.confidence.toFixed(0)}%
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {pred.marketState ? (
-                            <Badge variant="secondary" className="text-xs font-normal">
-                              {pred.marketState}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">â€”</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{renderOutcomeBadge(pred.outcome)}</TableCell>
-                        <TableCell className="text-right">
-                          {!pred.outcome && (
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-green-500 hover:text-green-400 hover:bg-green-500/10"
-                                onClick={() => handleUpdateOutcome(pred.id, "correct")}
-                                disabled={updateOutcomeMutation.isPending}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-                                onClick={() => handleUpdateOutcome(pred.id, "incorrect")}
-                                disabled={updateOutcomeMutation.isPending}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                          {pred.outcome && <span className="text-muted-foreground text-xs">â€”</span>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>{renderOutcomeBadge(safe.outcome)}</TableCell>
+                          <TableCell className="text-right">
+                            {!safe.outcome && (
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-green-500 hover:text-green-400 hover:bg-green-500/10"
+                                  onClick={() => handleUpdateOutcome(safe.id, "correct")}
+                                  disabled={updateOutcomeMutation.isPending}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                                  onClick={() => handleUpdateOutcome(safe.id, "incorrect")}
+                                  disabled={updateOutcomeMutation.isPending}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                            {safe.outcome && <span className="text-muted-foreground text-xs">—</span>}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -403,7 +431,7 @@ export default function Predictions() {
                   onClick={handleAutoPrediction}
                   className="mt-2"
                 >
-                  Generate first prediction â†’
+                  Generate first prediction →
                 </Button>
               </div>
             )}

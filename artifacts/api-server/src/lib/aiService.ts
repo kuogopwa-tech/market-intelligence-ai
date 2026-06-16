@@ -339,35 +339,55 @@ function buildRuleBasedReasoning(
 }
 
 function safeExtractJsonObject(raw: string): unknown {
-  // Fast path: direct JSON object parse
-  const trimmed = raw.trim();
-  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+  const cleaned = raw
+    .trim()
+    // remove markdown code fences if present
+    .replace(/^```[a-zA-Z0-9_-]*\n?/u, "")
+    .replace(/```$/u, "")
+    .trim();
+
+  const tryNormalizeParse = (candidate: string): unknown => {
+    const parsed = JSON.parse(candidate);
+    if (Array.isArray(parsed)) {
+      // handle cases like: [ { ... } ]
+      const first = parsed[0];
+      return first;
+    }
+    return parsed;
+  };
+
+  // Fast path: direct JSON parse (object or array)
+  if (
+    (cleaned.startsWith("{") && cleaned.endsWith("}")) ||
+    (cleaned.startsWith("[") && cleaned.endsWith("]"))
+  ) {
     try {
-      return JSON.parse(trimmed);
+      return tryNormalizeParse(cleaned);
     } catch {
       // fallthrough
     }
   }
 
-  // Balanced-brace extraction (handles extra leading/trailing text)
-  const start = raw.indexOf("{");
-  if (start === -1) throw new Error("No JSON object start found in AI response");
+  // Extract first JSON object/array block
+  const startObj = cleaned.indexOf("{");
+  const startArr = cleaned.indexOf("[");
+  const start = startObj === -1 ? startArr : startArr === -1 ? startObj : Math.min(startObj, startArr);
+  if (start === -1) throw new Error("No JSON in AI response");
+
+  const openCh = cleaned[start];
+  const closeCh = openCh === "[" ? "]" : "}";
 
   let depth = 0;
   let inString = false;
   let escape = false;
 
-  for (let i = start; i < raw.length; i++) {
-    const ch = raw[i];
+  for (let i = start; i < cleaned.length; i++) {
+    const ch = cleaned[i];
 
     if (inString) {
-      if (escape) {
-        escape = false;
-      } else if (ch === "\\") {
-        escape = true;
-      } else if (ch === '"') {
-        inString = false;
-      }
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') inString = false;
       continue;
     }
 
@@ -376,24 +396,27 @@ function safeExtractJsonObject(raw: string): unknown {
       continue;
     }
 
-    if (ch === "{") depth++;
-    if (ch === "}") depth--;
+    if (ch === openCh) depth++;
+    if (ch === closeCh) depth--;
 
     if (depth === 0) {
-      const candidate = raw.slice(start, i + 1);
+      const candidate = cleaned.slice(start, i + 1);
       try {
-        return JSON.parse(candidate);
+        return tryNormalizeParse(candidate);
       } catch {
-        // fallthrough to regex attempt
         break;
       }
     }
   }
 
   // Regex fallback: first JSON object-ish block
-  const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("No JSON in AI response");
-  return JSON.parse(match[0]);
+  const objMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objMatch) return tryNormalizeParse(objMatch[0]);
+
+  const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+  if (arrMatch) return tryNormalizeParse(arrMatch[0]);
+
+  throw new Error("No JSON in AI response");
 }
 
 function ruleBasedAnalysis(

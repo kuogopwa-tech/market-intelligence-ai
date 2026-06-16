@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useIntelligenceAggregated, useIntelligenceStatus, useSymbols } from "@/api/hooks";
 import { GlassCard } from "@/components/ui/Cards";
 
@@ -45,22 +45,30 @@ export default function IntelligenceHubPage() {
   const [evolutionLoading, setEvolutionLoading] = useState(false);
   const [evolutionError, setEvolutionError] = useState<string | null>(null);
 
-  useState(() => {
+  useEffect(() => {
     void (async () => {
       try {
         setEvolutionLoading(true);
         setEvolutionError(null);
         const res = await fetch(`/api/intelligence/evolution/${symbol}?limit=20`);
+
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as EvolutionResponse;
+
+        // Guard against empty/non-JSON responses to prevent:
+        // "Failed to execute 'json' on 'Response': Unexpected end of JSON input"
+        const text = await res.text();
+        if (!text?.trim()) throw new Error("Empty response");
+
+        const data = JSON.parse(text) as EvolutionResponse;
         setEvolution(data);
       } catch (err) {
         setEvolutionError(err instanceof Error ? err.message : "Failed to load evolution");
+        setEvolution(null);
       } finally {
         setEvolutionLoading(false);
       }
     })();
-  });
+  }, [symbol]);
 
   const leaderboard = ((aggregated.data as IntelligenceAggregatedResponse | undefined)?.leaderboard ?? []);
 
