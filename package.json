@@ -1,34 +1,35 @@
 {
-    "name":  "workspace",
-    "version":  "0.0.0",
-    "license":  "MIT",
-    "scripts":  {
-                    "preinstall":  "node -e \"const ua=process.env.npm_config_user_agent||\u0027\u0027; if(!ua.startsWith(\u0027pnpm/\u0027)){console.error(\u0027Use pnpm instead\u0027); process.exit(1);} const fs=require(\u0027fs\u0027); for(const f of [\u0027package-lock.json\u0027,\u0027yarn.lock\u0027]){ try{ if(fs.existsSync(f)) fs.rmSync(f,{force:true}); }catch{} }\"",
-                    "build:db":  "cd lib/db \u0026\u0026 pnpm run build",
-                    "build:api-zod":  "cd lib/api-zod \u0026\u0026 pnpm run build",
-                    "build:api-server":  "cd artifacts/api-server \u0026\u0026 pnpm run build",
-                    "build:frontend":  "cd artifacts/deriv-analyst \u0026\u0026 pnpm run build",
-                    "build:vercel":  "pnpm run build:db \u0026\u0026 pnpm run build:api-zod \u0026\u0026 pnpm run build:api-server \u0026\u0026 pnpm run build:frontend",
-                    "build":  "pnpm run build:vercel",
-                    "typecheck:libs":  "tsc --build",
-                    "typecheck":  "pnpm run typecheck:libs \u0026\u0026 pnpm -r --filter \"./artifacts/**\" --filter \"!./artifacts/mockup-sandbox\" --filter \"./scripts\" --if-present run typecheck",
-                    "reset:dev":  "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/reset-dev-data.ts",
-                    "create:admin":  "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/create-admin.ts"
-                },
-    "private":  true,
-    "devDependencies":  {
-                            "@types/node":  "catalog:",
-                            "prettier":  "^3.8.3",
-                            "tsx":  "catalog:",
-                            "typescript":  "~5.9.3"
-                        },
-    "optionalDependencies":  {
-                                 "@rollup/rollup-win32-x64-msvc":  "^4.61.1",
-                                 "@tailwindcss/oxide-win32-x64-msvc":  "^4.3.0",
-                                 "lightningcss-win32-x64-msvc":  "^1.32.0"
-                             },
-    "dependencies":  {
-                         "dotenv":  "^16.6.1"
-                     },
-    "packageManager":  "pnpm@10.34.1"
+    "name": "workspace",
+    "version": "0.0.0",
+    "license": "MIT",
+    "scripts": {
+        "preinstall": "node -e \"const ua=process.env.npm_config_user_agent||''; if(!ua.startsWith('pnpm/')){console.error('Use pnpm instead'); process.exit(1);} const fs=require('fs'); for(const f of ['package-lock.json','yarn.lock']){ try{ if(fs.existsSync(f)) fs.rmSync(f,{force:true}); }catch{} }\"",
+        "build:db": "cd lib/db && pnpm run build",
+        "build:api-zod": "cd lib/api-zod && pnpm run build",
+        "build:api-server": "cd artifacts/api-server && pnpm run build",
+        "build:frontend": "cd artifacts/deriv-analyst && pnpm run build",
+        "build:vercel": "pnpm run build:db && pnpm run build:api-zod && pnpm run build:api-server && pnpm run build:frontend",
+        "build": "pnpm run build:vercel",
+        "typecheck:libs": "tsc --build",
+        "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"!./artifacts/mockup-sandbox\" --filter \"./scripts\" --if-present run typecheck",
+        "reset:dev": "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/reset-dev-data.ts",
+        "create:admin": "pnpm --filter \"@workspace/scripts\" exec tsx ../scripts/create-admin.ts"
+    },
+    "private": true,
+    "devDependencies": {
+        "@types/node": "catalog:",
+        "@vercel/node": "^5.8.17",
+        "prettier": "^3.8.3",
+        "tsx": "catalog:",
+        "typescript": "~5.9.3"
+    },
+    "optionalDependencies": {
+        "@rollup/rollup-win32-x64-msvc": "^4.61.1",
+        "@tailwindcss/oxide-win32-x64-msvc": "^4.3.0",
+        "lightningcss-win32-x64-msvc": "^1.32.0"
+    },
+    "dependencies": {
+        "dotenv": "^16.6.1"
+    },
+    "packageManager": "pnpm@10.34.1"
 }

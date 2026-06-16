@@ -360,7 +360,18 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  // Ensure cookie-based sessions work reliably in browsers.
+  // If caller did not explicitly set credentials, default to include.
+  const credentials =
+    (init as RequestInit & { credentials?: RequestCredentials }).credentials ??
+    options.credentials;
+
+  const response = await fetch(input, {
+    ...init,
+    method,
+    headers,
+    ...(credentials == null ? { credentials: "include" as RequestCredentials } : { credentials }),
+  });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

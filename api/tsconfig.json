@@ -5,6 +5,7 @@
                             "moduleResolution": "bundler",
                             "allowImportingTsExtensions":  false,
                             "esModuleInterop":  false,
+                            "ignoreDeprecations": "6.0",
                             "allowSyntheticDefaultImports": true,
                             "skipLibCheck":  true,
                             "noEmit":  false,
