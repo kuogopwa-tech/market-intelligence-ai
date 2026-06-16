@@ -10,7 +10,15 @@
       "dest": "/api/index.ts"
     },
     {
-      "src": "/(.*)",
+      "src": "/_next/(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/(?!api)(?!.*\\.[a-zA-Z0-9]+$)(.*)",
       "dest": "/index.html"
     }
   ]

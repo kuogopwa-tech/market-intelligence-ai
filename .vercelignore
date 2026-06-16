@@ -1,8 +1,7 @@
 node_modules
 **/node_modules
-dist
-**/dist
-artifacts/**/dist
+# Do NOT ignore dist globally because the deploy uses:
+# outputDirectory: artifacts/deriv-analyst/dist/public (from vercel.json)
 artifacts/**/node_modules
 .git
 .vscode

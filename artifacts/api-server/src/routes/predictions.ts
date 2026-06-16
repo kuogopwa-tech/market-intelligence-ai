@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { predictionsTable, learningMemoryTable } from "@workspace/db";
 import { eq, desc, sql, isNull, and } from "drizzle-orm";
 import { CreatePredictionBody, UpdatePredictionOutcomeBody, UpdatePredictionOutcomeParams } from "@workspace/api-zod";
-import { getCandles, getLatestPrice } from "../lib/derivWs.js";
+import { getCandles } from "../lib/derivWs.js";
 import { calculateAllIndicators } from "../lib/indicators.js";
 import { mergeSignals, computeSignalQuality } from "../lib/signalEngine.js";
 import { classifyIndicatorPattern } from "../lib/patternEngine.js";
@@ -12,8 +12,38 @@ import { logger } from "../lib/logger.js";
 
 const router: Router = Router();
 
-const TRADE_DURATION_SECONDS = 60;
 const PREDICTION_COOLDOWN_MS = 30000; // 30 seconds cooldown
+
+function intervalToSeconds(interval: string): number | null {
+  const normalized = interval.trim().toLowerCase();
+
+  const asNumber = (n: number) =>
+    Number.isFinite(n) && n > 0 ? n : null;
+
+  // Supported values from the UI/store:
+  // "1m","5m","15m","1h","4h","1d"
+  if (normalized === "1m") return 60;
+  if (normalized === "5m") return asNumber(5 * 60);
+  if (normalized === "15m") return asNumber(15 * 60);
+  if (normalized === "1h") return asNumber(60 * 60);
+  if (normalized === "4h") return asNumber(4 * 60 * 60);
+  if (normalized === "1d") return asNumber(24 * 60 * 60);
+
+  return null;
+}
+
+function resolveCloseAtWindowEndEpoch(candles: Awaited<ReturnType<typeof getCandles>>, windowEndEpochMs: number) {
+  // candles are returned with epoch values in seconds (see derivWs candle interface: epoch:number)
+  // Pick the last candle with epoch <= windowEndTime.
+  let last: (typeof candles)[number] | null = null;
+  const windowEndEpochS = Math.floor(windowEndEpochMs / 1000);
+
+  for (const c of candles) {
+    if (c.epoch <= windowEndEpochS) last = c;
+    else break;
+  }
+  return last;
+}
 
 // Rate limiting storage (userId -> symbol -> lastPredictionTimestamp)
 const lastPredictionTimes = new Map<string, Map<string, number>>();
@@ -68,7 +98,7 @@ function formatPrediction(r: typeof predictionsTable.$inferSelect) {
 /* -------------------------------------------------------
    CORE EVALUATION (WRITE ONLY - NO GET ROUTES CALL IT)
 ------------------------------------------------------- */
-async function autoEvaluatePending(userId: string, symbol: string, currentPrice: number): Promise<void> {
+async function autoEvaluatePending(userId: string, symbol: string): Promise<void> {
   try {
     const pending = await db
       .select()
@@ -77,29 +107,42 @@ async function autoEvaluatePending(userId: string, symbol: string, currentPrice:
         and(
           eq(predictionsTable.symbol, symbol),
           eq(predictionsTable.userId, userId),
-          isNull(predictionsTable.outcome)
-        )
+          isNull(predictionsTable.outcome),
+        ),
       )
       .orderBy(desc(predictionsTable.createdAt))
       .limit(20);
 
+    const nowS = Math.floor(Date.now() / 1000);
+
     for (const pred of pending) {
-      const nowS = Math.floor(Date.now() / 1000);
-      const ageSeconds = Math.floor((Date.now() - pred.createdAt.getTime()) / 1000);
+      // Window end must be derived from expiresAt (DB source of truth)
+      const windowEndS = pred.expiresAt ?? null;
+      if (!windowEndS) continue;
 
-      const isExpired = pred.expiresAt ? nowS >= pred.expiresAt : ageSeconds > 300;
-      const priceDiff = Math.abs(currentPrice - pred.entryPrice) / pred.entryPrice;
+      // Only evaluate at/after window end
+      if (nowS < windowEndS) continue;
 
-      // STRICT RULE: Only evaluate if expired OR (age >= trade duration AND meaningful price movement)
-      if (!isExpired && ageSeconds < TRADE_DURATION_SECONDS) continue;
-      if (!isExpired && priceDiff < 0.0005) continue;
+      const intervalSeconds = intervalToSeconds(pred.interval);
+      if (!intervalSeconds) continue;
+
+      // We need candles whose last candle can represent "close at window end"
+      // Use the same granularity as interval seconds.
+      const windowEndEpochMs = windowEndS * 1000;
+
+      const candles = await getCandles(symbol, intervalSeconds, 200);
+      if (!candles || candles.length < 1) continue;
+
+      const closeCandle = resolveCloseAtWindowEndEpoch(candles, windowEndEpochMs);
+      if (!closeCandle) continue;
+
+      const closeAtWindowEnd = closeCandle.close;
 
       let outcome: "correct" | "incorrect";
-
       if (pred.direction === "rise") {
-        outcome = currentPrice > pred.entryPrice ? "correct" : "incorrect";
+        outcome = closeAtWindowEnd > pred.entryPrice ? "correct" : "incorrect";
       } else if (pred.direction === "fall") {
-        outcome = currentPrice < pred.entryPrice ? "correct" : "incorrect";
+        outcome = closeAtWindowEnd < pred.entryPrice ? "correct" : "incorrect";
       } else {
         continue;
       }
@@ -108,10 +151,12 @@ async function autoEvaluatePending(userId: string, symbol: string, currentPrice:
         .update(predictionsTable)
         .set({
           outcome,
-          exitPrice: currentPrice,
+          exitPrice: closeAtWindowEnd,
           resolvedAt: nowS,
         })
-        .where(eq(predictionsTable.id, pred.id));
+        .where(
+          and(eq(predictionsTable.id, pred.id), isNull(predictionsTable.outcome)),
+        );
 
       await db.insert(learningMemoryTable).values({
         userId: pred.userId,
@@ -197,39 +242,27 @@ router.post("/predictions", requireAuth(), async (req, res) => {
   }
 
   const { symbol, direction, confidence, entryPrice, analysisId, indicators } = parsed.data;
+  const rawInterval = String((req.body as any)?.interval ?? "1m");
+  const intervalSeconds = intervalToSeconds(rawInterval);
+  const safeIntervalSeconds = intervalSeconds ?? 60;
+  const createdAtS = Math.floor(Date.now() / 1000);
+  const expiresAt = createdAtS + safeIntervalSeconds;
 
   try {
-    // Check for existing pending prediction
-    const [existing] = await db
-      .select()
-      .from(predictionsTable)
-      .where(
-        and(
-          eq(predictionsTable.userId, userId),
-          eq(predictionsTable.symbol, symbol),
-          isNull(predictionsTable.outcome)
-        )
-      )
-      .limit(1);
-
-    if (existing) {
-      return res.status(409).json({
-        generated: false,
-        duplicate: true,
-        reason: "You already have a pending prediction for this symbol. Resolve it first.",
-        prediction: formatPrediction(existing),
-      });
-    }
+    // Concurrency is enforced ONLY by PostgreSQL partial unique index.
+    // Do not SELECT-lock / check for existing pending prediction here.
 
     const [row] = await db
       .insert(predictionsTable)
       .values({
         userId,
         symbol,
+        interval: rawInterval,
         direction,
         confidence,
         entryPrice,
         analysisId: analysisId ?? null,
+        expiresAt,
         indicators: indicators as Record<string, unknown>,
       })
       .returning();
@@ -237,23 +270,12 @@ router.post("/predictions", requireAuth(), async (req, res) => {
     return res.status(201).json(formatPrediction(row));
   } catch (err: any) {
     if (err.code === "23505") {
-      const [existing] = await db
-        .select()
-        .from(predictionsTable)
-        .where(
-          and(
-            eq(predictionsTable.userId, userId),
-            eq(predictionsTable.symbol, symbol),
-            isNull(predictionsTable.outcome)
-          )
-        )
-        .limit(1);
-
-      return res.json({
+      // Unique index conflict => an active prediction already exists.
+      return res.status(409).json({
         generated: false,
         duplicate: true,
         reason: "Active prediction exists",
-        prediction: existing ? formatPrediction(existing) : null,
+        prediction: null,
       });
     }
 
@@ -322,7 +344,12 @@ router.patch("/predictions/:id/outcome", requireAuth(), async (req, res) => {
 ------------------------------------------------------- */
 router.post("/predictions/auto", requireAuth(), async (req, res) => {
   const userId = req.user!.id;
-  const symbol = String(req.body?.symbol ?? "R_100");
+  const rawSymbol = String((req.body as any)?.symbol ?? "R_100");
+  const rawInterval = String((req.body as any)?.interval ?? "1m");
+
+  const intervalSeconds = intervalToSeconds(rawInterval) ?? 60;
+
+  const symbol = rawSymbol;
 
   // RATE LIMIT CHECK
   const rateLimit = checkRateLimit(userId, symbol);
@@ -335,33 +362,15 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
   }
 
   try {
-    // Check for existing pending prediction (duplicate prevention)
-    const [existingPending] = await db
-      .select()
-      .from(predictionsTable)
-      .where(
-        and(
-          eq(predictionsTable.userId, userId),
-          eq(predictionsTable.symbol, symbol),
-          isNull(predictionsTable.outcome)
-        )
-      )
-      .limit(1);
+    // Concurrency is enforced ONLY by PostgreSQL partial unique index.
+    // Do not SELECT-lock / check for existing pending prediction here.
 
-    if (existingPending) {
-      return res.status(409).json({
-        generated: false,
-        duplicate: true,
-        reason: "You already have a pending prediction. Wait for it to resolve or update its outcome.",
-        prediction: formatPrediction(existingPending),
-      });
-    }
-
+    // We fetch candles for the generation logic. Evaluation later is based on the stored expiresAt window.
     const candles = await getCandles(symbol, 60, 200);
     if (candles.length < 20) {
-      return res.status(503).json({ 
-        generated: false, 
-        reason: "Insufficient market data. Please try again in a few seconds." 
+      return res.status(503).json({
+        generated: false,
+        reason: "Insufficient market data. Please try again in a few seconds.",
       });
     }
 
@@ -388,13 +397,15 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
     // Ensure confidence is within valid range
     const finalConfidence = Math.min(100, Math.max(0, confidence));
     
-    const expiresAt = Math.floor(Date.now() / 1000) + 5 * 60;
+    const createdAtS = Math.floor(Date.now() / 1000);
+    const expiresAt = createdAtS + intervalSeconds;
 
     const [row] = await db
       .insert(predictionsTable)
       .values({
         userId,
         symbol,
+        interval: rawInterval,
         direction,
         confidence: finalConfidence,
         entryPrice: currentPrice,
@@ -444,23 +455,12 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
   } catch (err: any) {
     // Handle duplicate key error gracefully
     if (err.code === "23505") {
-      const [existing] = await db
-        .select()
-        .from(predictionsTable)
-        .where(
-          and(
-            eq(predictionsTable.userId, userId),
-            eq(predictionsTable.symbol, symbol),
-            isNull(predictionsTable.outcome)
-          )
-        )
-        .limit(1);
-
+      // Unique index conflict => an active prediction already exists.
       return res.status(409).json({
         generated: false,
         duplicate: true,
         reason: "Active prediction exists. Please resolve it first.",
-        prediction: existing ? formatPrediction(existing) : null,
+        prediction: null,
       });
     }
 

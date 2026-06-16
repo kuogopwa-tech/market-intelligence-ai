@@ -44,12 +44,20 @@ export default function AiPredictionsPage() {
             {!predictions.isLoading && !predictions.isError && (predictions.data?.length ?? 0) === 0 ? (
               <p className="text-sm text-slate-300">No predictions available yet.</p>
             ) : null}
-            {(predictions.data ?? []).map((p) => (
-              <div key={p.id} className="rounded-lg border border-white/10 p-3 text-sm">
-                <div className="font-medium">#{p.id} · {p.direction.toUpperCase()} · {p.confidence}%</div>
-                <div className="text-xs text-slate-400">Entry: {p.entryPrice} · Outcome: {p.outcome ?? "pending"}</div>
-              </div>
-            ))}
+            {(predictions.data ?? []).map((p) => {
+              const id = p.id ?? -1;
+              const direction = typeof p.direction === "string" ? p.direction.toUpperCase() : "—";
+              const confidence = typeof p.confidence === "number" ? `${p.confidence}%` : "—";
+              const entryPrice = typeof p.entryPrice === "number" ? p.entryPrice : "—";
+              const outcome = p.outcome ?? "pending";
+
+              return (
+                <div key={id} className="rounded-lg border border-white/10 p-3 text-sm">
+                  <div className="font-medium">#{id} · {direction} · {confidence}</div>
+                  <div className="text-xs text-slate-400">Entry: {entryPrice} · Outcome: {outcome}</div>
+                </div>
+              );
+            })}
           </div>
         </GlassCard>
 
@@ -61,12 +69,19 @@ export default function AiPredictionsPage() {
             {!accuracy.isLoading && !accuracy.isError && (accuracy.data?.length ?? 0) === 0 ? (
               <p className="text-sm text-slate-300">No accuracy history available yet.</p>
             ) : null}
-            {(accuracy.data ?? []).map((a) => (
-              <div key={a.symbol} className="rounded-lg border border-white/10 p-3 text-sm">
-                <div className="font-medium">{a.symbol}</div>
-                <div className="text-xs text-slate-400">Accuracy: {a.accuracy}% · Total: {a.total} · Pending: {a.pending}</div>
-              </div>
-            ))}
+            {(accuracy.data ?? []).map((a) => {
+              const symbol = a.symbol ?? "—";
+              const acc = typeof a.accuracy === "number" ? `${a.accuracy}%` : "—";
+              const total = typeof a.total === "number" ? a.total : "—";
+              const pending = typeof a.pending === "number" ? a.pending : "—";
+
+              return (
+                <div key={symbol} className="rounded-lg border border-white/10 p-3 text-sm">
+                  <div className="font-medium">{symbol}</div>
+                  <div className="text-xs text-slate-400">Accuracy: {acc} · Total: {total} · Pending: {pending}</div>
+                </div>
+              );
+            })}
           </div>
         </GlassCard>
       </div>

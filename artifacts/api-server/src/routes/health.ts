@@ -1,7 +1,15 @@
-import { Router, type IRouter } from "express";
+﻿import { Router, type IRouter } from "express";
 import { checkAiOnline } from "../lib/aiService.js";
 
 const router: IRouter = Router();
+
+router.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    service: "market-intelligence-ai",
+    timestamp: new Date().toISOString()
+  });
+});
 
 router.get("/healthz", (_req, res) => {
   res.json({
