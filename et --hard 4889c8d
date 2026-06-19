@@ -1,0 +1,55 @@
+[33m56775b6[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Production deployment update
+[33m86e4ebb[m[33m ([m[1;31morigin/main[m[33m)[m fix: cookie auth reliability + TS deprecation fix
+[33m98918a9[m chore: redeploy with final vercel.json
+[33m26ac21f[m fix: correct vercel.json with explicit builds and routes
+[33m3f6799f[m chore: redeploy with fixed vercel.json
+[33m4c1961f[m fix: correct vercel.json syntax and remove BOM
+[33m4889c8d[m chore: redeploy with null-safety fixes
+[33m66b8fac[m fix: handle null values with optional chaining in Predictions page
+[33m7c5c598[m chore: trigger Vercel deployment
+[33me62de15[m chore: final deployment - all fixes applied
+[33m198637f[m fix: correct autoResult state and prediction mapping
+[33m98804a5[m chore: redeploy after BOM fixes
+[33mbde80b6[m fix: remove BOM from package.json and vite.config.ts
+[33mc42ab82[m chore: redeploy with debug logging
+[33me9cb617[m debug: add logging to api handler to see why app.js fails to load
+[33m3a9b46d[m fix: ensure api-server builds before frontend and vercel function
+[33m8fdd772[m chore: redeploy with fixed api handler
+[33m31f1009[m fix: remove duplicate export default, add error logging
+[33m7b2fb26[m chore: redeploy with fixed API routes
+[33m5bd5f16[m fix: add API routes to vercel.json - map /api/* to serverless function
+[33mf782b84[m chore: redeploy after BOM fix
+[33m8b8ebd4[m fix: remove BOM from package.json (UTF-8 without BOM)
+[33m63b7a4b[m chore: redeploy with optimized build
+[33m576419b[m fix: optimize Vercel build to prevent OOM (remove recursive build loop)
+[33ma7c6af4[m chore: deploy working backend to Vercel
+[33m5c601bf[m fix: predictions.ts with SignalQuality, backend running perfectly
+[33mf2f7bfd[m fix: remove BOM from signalEngine.ts and other TS files
+[33m9ed4df8[m fix(vercel): use dedicated production build
+[33mbd5de88[m fix: vercel rewrite pattern
+[33m62b8a6c[m Connect frontend Memory screen to memory backend endpoints + memory schema updates
+[33m84e95ca[m feat: scanner improvements, volatility engine update, responsiveness fixes and migrations
+[33m895b7d6[m feat: improve volatility-based spike detection
+[33m78362a2[m Production-ready deployment with serverless optimization
+[33m02eccf4[m feat: add api status endpoint
+[33ma94aa1a[m chore: force redeploy
+[33m8f53eed[m fix: remove conflicting empty API files causing 500 errors
+[33mba558c9[m chore: save local UI updates before Vercel fix
+[33m334b0fc[m fix: api-zod esm exports
+[33m88f0da1[m fix: add .js extensions to lib/db ESM exports for Node.js compatibility
+[33m175f0db[m fix: resolve Vercel ESM/CommonJS runtime mismatch
+[33mf31651c[m Disable sourcemaps in production build to fix Vite warnings
+[33mbcda1df[m fix(api): dynamic import ESM app to avoid ERR_REQUIRE_ESM\n\nCo-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+[33m1c0d356[m chore(vercel): serverless/dist packaging fixes
+[33mb3d87d5[m fix: dynamic import points to routes/index.js
+[33m44d339f[m fix: add module: NodeNext and .js extension to dynamic import
+[33m7cb73f7[m chore: redeploy after db fix
+[33m4ee4a73[m chore: redeploy after db import fix
+[33m1c197af[m chore: force redeploy
+[33m938b62f[m fix: final tsconfig fixes for api-server
+[33m00e6b56[m fix: final tsconfig fixes for api-server
+[33m7e6c33a[m fix: add js extensions to api-zod exports
+[33m7bdaed7[m chore: redeploy after api-zod fix
+[33m1a6bcdd[m fix: add .js extensions and set moduleResolution Node in api-zod
+[33m0e91e71[m fix: add .js extensions to imports in lib/api-zod
+[33m011f218[m fix: remove BOM from package.json (UTF-8 without BOM)
