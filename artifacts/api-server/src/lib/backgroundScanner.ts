@@ -12,6 +12,7 @@ import { mergeSignals, computeSignalQuality } from "./signalEngine.js";
 import { classifyIndicatorPattern, computePatternStats } from "./patternEngine.js";
 import { runAggregation } from "./aggregationEngine.js";
 import { detectEvolution } from "./evolutionEngine.js";
+import { runAutoResolveExpiredPredictions } from "./predictionAutoResolver.js";
 import { refreshSymbolPersonality } from "./personalityRefresher.js";
 import { SYSTEM_USER_ID } from "./constants.js"; // Import SYSTEM_USER_ID
 import { logger } from "./logger.js";
@@ -410,13 +411,23 @@ export async function runBackgroundScan(): Promise<void> {
           if (failCount > 0) logger.warn({ failCount }, "Some personality refreshes failed");
         });
 
-        // Run aggregation + evolution detection in background (non-blocking to scan run)
+        // Run aggregation in background (non-blocking to scan run)
         void runAggregation(results, now).catch((err) =>
           logger.error({ err }, "Aggregation engine error")
         );
-        void detectEvolution().catch((err) =>
-          logger.error({ err }, "Evolution engine error")
-        );
+      }
+
+      // Evolution learning first, then resolve expired predictions (order requirement)
+      try {
+        await detectEvolution();
+      } catch (err) {
+        logger.error({ err }, "Evolution engine error");
+      }
+
+      try {
+        void await runAutoResolveExpiredPredictions();
+      } catch (err) {
+        logger.error({ err }, "Auto prediction resolver error");
       }
     }
 
@@ -503,6 +514,43 @@ export function stopBackgroundScanner(): void {
     clearInterval(intervalHandle);
     intervalHandle = null;
   }
+  scanLock = false;
   state.running = false;
+  state.lastScanAt = null;
+  state.nextScanAt = null;
+  state.totalScans = 0;
+  state.lastLatencyMs = null;
+  state.lastError = null;
+  state.currentScanRunId = null;
+  state.startedAt = Date.now();
   logger.info("Background scanner stopped");
+}
+
+/**
+ * Resets all in-memory scheduler state to the “fresh install” defaults.
+ * Intended to be called during factory reset, after stopping the scanner.
+ */
+export function resetBackgroundScannerState(symbolFilter: string | null = null): void {
+  // scheduler state
+  scanLock = false;
+  intervalHandle = null;
+
+  state.running = false;
+  state.lastScanAt = null;
+  state.nextScanAt = null;
+  state.totalScans = 0;
+  state.startedAt = Date.now();
+  state.lastLatencyMs = null;
+  state.lastError = null;
+  state.currentScanRunId = null;
+
+  // system reset state
+  systemReset = {
+    active: false,
+    symbol: null,
+    resetAt: null,
+  };
+
+  // note: symbolFilter is intentionally unused; full reset clears all
+  void symbolFilter;
 }

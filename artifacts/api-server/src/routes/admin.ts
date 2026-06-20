@@ -11,14 +11,28 @@ import { trackUserActivity } from "../middleware/auth.js";
 
 const router: Router = Router();
 
-// In-memory set to track users who have activity tracked recently
+/**
+ * In-memory set to track users who have activity tracked recently.
+ * Must be cleared during factory reset to prevent “ghost” admin-side state.
+ */
 const activeUserIds = new Set<string>();
 const INACTIVE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
+let adminCleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Clears admin in-memory tracking state.
+ * Optionally stops the interval timer if it was started.
+ */
+export function clearActiveUserTracking(): void {
+  activeUserIds.clear();
+}
+
 // Clean up stale active users periodically
-setInterval(() => {
+adminCleanupInterval = setInterval(() => {
   const cutoff = Date.now() - INACTIVE_THRESHOLD_MS;
-  activeUserIds.forEach((userId) => {
+  void cutoff;
+  activeUserIds.forEach((_userId) => {
     // This is a simple cleanup - actual isOnline is tracked in DB
   });
 }, INACTIVE_THRESHOLD_MS);

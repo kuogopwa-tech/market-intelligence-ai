@@ -3,7 +3,6 @@ import {
   useGetPredictions,
   getGetPredictionsQueryKey,
   useGetPredictionAccuracy,
-  useUpdatePredictionOutcome,
   useAutoPrediction,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,7 +35,6 @@ export default function Predictions() {
     query: { queryKey: ["getPredictionAccuracy"] },
   });
 
-  const updateOutcomeMutation = useUpdatePredictionOutcome();
   const autoPredictionMutation = useAutoPrediction();
 
   const symbolStats = stats?.find((s) => s.symbol === selectedSymbol);
@@ -56,18 +54,6 @@ export default function Predictions() {
   const uniquePending = uniquePredictions.filter(p => !p.outcome).length;
   const uniqueAccuracy = uniqueTotal > 0 ? (uniqueCorrect / uniqueTotal) * 100 : 0;
 
-  const handleUpdateOutcome = useCallback((id: number, outcome: "correct" | "incorrect") => {
-    updateOutcomeMutation.mutate(
-      { id, data: { outcome, exitPrice: 0 } },
-      {
-        onSuccess: () => {
-          refetchPredictions();
-          refetchStats();
-          queryClient.invalidateQueries({ queryKey: ["getPredictionAccuracy"] });
-        },
-      }
-    );
-  }, [updateOutcomeMutation, refetchPredictions, refetchStats, queryClient]);
 
   // Auto refresh with deduplication and rate limiting
   useEffect(() => {
@@ -142,6 +128,65 @@ export default function Predictions() {
       }
     );
   }, [autoPredictionMutation, selectedSymbol, lastPredictionTime, refetchPredictions, refetchStats]);
+
+  const timeoutByIdRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
+
+  const clearTimeoutForId = useCallback((id: number) => {
+    const map = timeoutByIdRef.current;
+    const existing = map.get(id);
+    if (existing) {
+      clearTimeout(existing);
+      map.delete(id);
+    }
+  }, []);
+
+  const scheduleRefetchForPrediction = useCallback(
+    (predId: number, expiresAt: number) => {
+      // Avoid rescheduling if we already have one
+      if (timeoutByIdRef.current.has(predId)) return;
+
+      const bufferMs = 300; // give backend a small moment to resolve
+      const delayMs = Math.max(0, expiresAt - Date.now() + bufferMs);
+
+      const t = setTimeout(() => {
+        // If it already resolved by the time we fire, refetch is still safe.
+        refetchPredictions();
+        refetchStats();
+        clearTimeoutForId(predId);
+      }, delayMs);
+
+      timeoutByIdRef.current.set(predId, t);
+    },
+    [clearTimeoutForId, refetchPredictions, refetchStats]
+  );
+
+  useEffect(() => {
+    // (Re)concile per-prediction timers when new predictions arrive.
+    const pendingIds = new Set<number>();
+
+    for (const pred of uniquePredictions) {
+      const expiresAt = (pred as { expiresAt?: number | null })?.expiresAt ?? null;
+      const outcome = (pred as { outcome?: "correct" | "incorrect" | null })?.outcome ?? null;
+
+      if (outcome == null && typeof expiresAt === "number" && isFinite(expiresAt)) {
+        pendingIds.add(pred.id);
+        scheduleRefetchForPrediction(pred.id, expiresAt);
+      }
+    }
+
+    // Cleanup timers for predictions that are no longer pending
+    for (const [id] of timeoutByIdRef.current.entries()) {
+      if (!pendingIds.has(id)) clearTimeoutForId(id);
+    }
+  }, [uniquePredictions, clearTimeoutForId, scheduleRefetchForPrediction]);
+
+  useEffect(() => {
+    // Component unmount safety
+    return () => {
+      for (const [, t] of timeoutByIdRef.current.entries()) clearTimeout(t);
+      timeoutByIdRef.current.clear();
+    };
+  }, []);
 
   const renderOutcomeBadge = (outcome?: string | null) => {
     if (outcome === "correct") {
@@ -338,17 +383,16 @@ export default function Predictions() {
                       <TableHead className="font-semibold">Confidence</TableHead>
                       <TableHead className="font-semibold">Market State</TableHead>
                       <TableHead className="font-semibold">Outcome</TableHead>
-                      <TableHead className="text-right font-semibold">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {uniquePredictions.slice(0, 25).map((pred) => {
                       const safe = safePrediction(pred);
                       return (
-                        <TableRow key={safe.id} className="border-border hover:bg-muted/20 transition-colors">
-                          <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                            {format(new Date(safe.createdAt * 1000), "dd MMM HH:mm:ss")}
-                          </TableCell>
+                      <TableRow key={safe.id} className="border-border hover:bg-muted/20 transition-colors">
+                      <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                        {format(new Date(safe.createdAt * 1000), "dd MMM HH:mm:ss")}
+                      </TableCell>
                           <TableCell>
                             <div
                               className={`flex items-center gap-1.5 font-semibold ${
@@ -388,33 +432,8 @@ export default function Predictions() {
                               <span className="text-muted-foreground text-xs">—</span>
                             )}
                           </TableCell>
-                          <TableCell>{renderOutcomeBadge(safe.outcome)}</TableCell>
-                          <TableCell className="text-right">
-                            {!safe.outcome && (
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 w-8 p-0 text-green-500 hover:text-green-400 hover:bg-green-500/10"
-                                  onClick={() => handleUpdateOutcome(safe.id, "correct")}
-                                  disabled={updateOutcomeMutation.isPending}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-                                  onClick={() => handleUpdateOutcome(safe.id, "incorrect")}
-                                  disabled={updateOutcomeMutation.isPending}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                            {safe.outcome && <span className="text-muted-foreground text-xs">—</span>}
-                          </TableCell>
-                        </TableRow>
+                      <TableCell>{renderOutcomeBadge(safe.outcome)}</TableCell>
+                    </TableRow>
                       );
                     })}
                   </TableBody>

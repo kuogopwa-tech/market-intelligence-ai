@@ -58,6 +58,14 @@ interface CacheEntry {
 
 const analysisCache = new Map<string, CacheEntry>();
 
+export function getAnalysisCacheStats() {
+  return { size: analysisCache.size };
+}
+
+export function clearAnalysisCache(): void {
+  analysisCache.clear();
+}
+
 export async function checkAiOnline(): Promise<{
   online: boolean;
   model: string | null;

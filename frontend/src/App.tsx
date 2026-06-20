@@ -18,6 +18,10 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<AppShell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
+
+          {/* Compatibility: some deployments/reference expect /intelligence */}
+          <Route path="intelligence" element={<Navigate to="/intelligence-hub" replace />} />
+
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="market-intelligence" element={<MarketIntelligencePage />} />
           <Route path="ai-predictions" element={<AiPredictionsPage />} />

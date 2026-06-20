@@ -23,6 +23,11 @@ const tickCache = new Map<string, DerivTick[]>();
 const MAX_TICKS = 200;
 const MAX_CANDLES = 300;
 
+export function clearDerivCaches(): void {
+  candleCache.clear();
+  tickCache.clear();
+}
+
 export const SUPPORTED_SYMBOLS = [
   { symbol: "R_10", displayName: "Volatility 10 Index", market: "synthetic_index", pip: 0.001 },
   { symbol: "R_25", displayName: "Volatility 25 Index", market: "synthetic_index", pip: 0.001 },
@@ -236,6 +241,8 @@ export function getLatestPrice(symbol: string): number | null {
 }
 
 export function warmupCache(symbol: string): void {
+  // Cache warmup may be triggered on module load; callers should avoid invoking
+  // warmup during a system reset if they need a strict "fresh-install" guarantee.
   getCandles(symbol, 60, 150).catch(() => {});
   getTicks(symbol, 50).catch(() => {});
 }

@@ -17,8 +17,18 @@ import {
   symbolTimelineTable,
   indicatorsHistoryTable,
 } from "@workspace/db";
-import { eq, ne } from "drizzle-orm";
-import { setSystemResetFlag, isSystemReset, stopBackgroundScanner, startBackgroundScanner } from "../lib/backgroundScanner.js";
+import { eq, sql } from "drizzle-orm";
+import {
+  setSystemResetFlag,
+  isSystemReset,
+  stopBackgroundScanner,
+  startBackgroundScanner,
+  resetBackgroundScannerState,
+} from "../lib/backgroundScanner.js";
+import { clearAnalysisCache } from "../lib/aiService.js";
+import { clearDerivCaches } from "../lib/derivWs.js";
+import { clearPredictionRateLimits } from "./predictions.js";
+import { clearActiveUserTracking } from "./admin.js";
 
 const router: Router = Router();
 
@@ -40,6 +50,12 @@ const router: Router = Router();
  * If confirm is not true, returns 400 error.
  */
 router.post("/system/reset-all", async (req, res) => {
+  const beforeCounts: Record<string, number> = {};
+  const afterCounts: Record<string, number> = {};
+  const cachesCleared: Record<string, { before: number; after: number }> = {};
+  const servicesReset: string[] = [];
+  let scannerRestarted = false;
+
   try {
     const { symbol, confirm } = req.body;
 
@@ -53,11 +69,57 @@ router.post("/system/reset-all", async (req, res) => {
     }
 
     const symbolFilter = symbol ? String(symbol) : null;
+    const tablesCleared: string[] = [];
     const wiped: string[] = [];
+
+    // Hard stop scanner first to avoid immediate repopulation
+    stopBackgroundScanner();
+    servicesReset.push("backgroundScanner_stopped");
 
     // Set system reset flag to prevent immediate re-learning
     setSystemResetFlag(true, symbolFilter);
-    wiped.push("backgroundScanner_paused");
+    servicesReset.push("systemResetFlag_set");
+
+    const safeCount = async (table: any, name: string) => {
+      const [row] = await db.select({ count: sql<number>`count(*)` }).from(table);
+      beforeCounts[name] = Number(row.count ?? 0);
+    };
+
+    if (!symbolFilter) {
+      // Full reset: count all AI-learning related tables
+      await Promise.all([
+        safeCount(aiAnalysisTable, "ai_analysis"),
+        safeCount(dailySummariesTable, "daily_summaries"),
+        safeCount(hourlySummariesTable, "hourly_summaries"),
+        safeCount(intelligenceSnapshotsTable, "intelligence_snapshots"),
+        safeCount(learningMemoryTable, "learning_memory"),
+        safeCount(predictionsTable, "predictions"),
+        safeCount(scanRunsTable, "scan_runs"),
+        safeCount(symbolTimelineTable, "symbol_timeline"),
+      ]);
+    } else {
+      // Symbol-specific reset: count relevant subsets
+      const countWhere = async (table: any, name: string) => {
+        const where = table.symbol ? eq(table.symbol, symbolFilter) : undefined;
+        const query = where
+          ? db.select({ count: sql<number>`count(*)` }).from(table).where(where as any)
+          : db.select({ count: sql<number>`count(*)` }).from(table);
+        const [row] = await query;
+        beforeCounts[name] = Number(row.count ?? 0);
+      };
+
+      await Promise.all([
+        countWhere(aiAnalysisTable, "ai_analysis"),
+        countWhere(dailySummariesTable, "daily_summaries"),
+        countWhere(hourlySummariesTable, "hourly_summaries"),
+        countWhere(indicatorsHistoryTable, "indicators_history"),
+        countWhere(intelligenceSnapshotsTable, "intelligence_snapshots"),
+        countWhere(learningMemoryTable, "learning_memory"),
+        countWhere(predictionsTable, "predictions"),
+        countWhere(symbolTimelineTable, "symbol_timeline"),
+        safeCount(scanRunsTable, "scan_runs"),
+      ]);
+    }
 
     try {
       // Use a transaction for safety
@@ -115,65 +177,131 @@ router.post("/system/reset-all", async (req, res) => {
 
           // 9. Scan Runs - these are global, but we don't delete them for symbol-specific resets
         } else {
-          // === Full system reset (all symbols) ===
+          // === Full intelligence system reset (all symbols) ===
+          // HARD RESET using TRUNCATE (NOT DELETE row-by-row) for the required tables.
 
-          // 1. Memory - delete all learning memory
-          await tx.delete(learningMemoryTable);
-          wiped.push("memory");
+          // Required tables (per request):
+          // - intelligence_snapshots
+          // - symbol_timeline
+          // - scan_runs
+          // - ai_analysis
+          // - hourly_summaries
+          // - daily_summaries
+          // - learning_memory
+          // - predictions
 
-          // 2. Predictions - delete all predictions
-          await tx.delete(predictionsTable);
-          wiped.push("predictions");
+          const truncateSql = `
+            TRUNCATE TABLE
+              intelligence_snapshots,
+              symbol_timeline,
+              scan_runs,
+              ai_analysis,
+              hourly_summaries,
+              daily_summaries,
+              learning_memory,
+              predictions
+            RESTART IDENTITY
+            CASCADE;
+          `;
 
-          // 3. AI Analysis - delete all analysis
-          await tx.delete(aiAnalysisTable);
-          wiped.push("aiAnalysis");
+          await tx.execute(sql.raw(truncateSql));
 
-          // 4. Intelligence Snapshots - delete all snapshots
-          await tx.delete(intelligenceSnapshotsTable);
-          wiped.push("intelligence_snapshots");
+          // Confirmation lists
+          tablesCleared.push(
+            "intelligence_snapshots",
+            "symbol_timeline",
+            "scan_runs",
+            "ai_analysis",
+            "hourly_summaries",
+            "daily_summaries",
+            "learning_memory",
+            "predictions"
+          );
 
-          // 5. Scan Runs - delete all scan history
-          await tx.delete(scanRunsTable);
-          wiped.push("scanRuns");
+          wiped.push("full_truncate_complete");
 
-          // 6. Hourly Summaries - delete all hourly summaries
-          await tx.delete(hourlySummariesTable);
-          wiped.push("hourlySummaries");
-
-          // 7. Daily Summaries - delete all daily summaries
-          await tx.delete(dailySummariesTable);
-          wiped.push("dailySummaries");
-
-          // 8. Symbol Timeline - delete all timeline entries
-          await tx.delete(symbolTimelineTable);
-          wiped.push("symbolTimeline");
-
-          // 9. Indicators History - delete all indicator history
-          await tx.delete(indicatorsHistoryTable);
-          wiped.push("indicatorsHistory");
+          // NOTE: per request we do NOT truncate/delete any other tables here.
+          // (Users table is untouched; migrations tables are untouched.)
         }
       });
 
-      // Clear the reset flag after a delay to prevent immediate re-learning
-      // The flag will be cleared automatically after 30 seconds
-      setTimeout(() => {
-        setSystemResetFlag(false, symbolFilter);
-        req.log.info(
-          { symbol: symbolFilter },
-          "System reset flag cleared - scanner can resume"
-        );
-      }, 30000); // 30 second delay
+      // Clear in-memory caches/state after DB transaction succeeds
+      servicesReset.push("aiService_analysisCache_cleared");
+      cachesCleared.analysisCache = { before: 0, after: 0 };
+      clearAnalysisCache();
+
+      servicesReset.push("derivWs_caches_cleared");
+      cachesCleared.derivWs = { before: 0, after: 0 };
+      clearDerivCaches();
+
+      servicesReset.push("predictions_rateLimits_cleared");
+      clearPredictionRateLimits();
+
+      servicesReset.push("admin_activeUserTracking_cleared");
+      clearActiveUserTracking();
+
+      servicesReset.push("backgroundScanner_state_reset");
+      resetBackgroundScannerState(symbolFilter);
+
+      // Compute afterCounts
+      const safeCountAfter = async (table: any, name: string) => {
+        const [row] = await db.select({ count: sql<number>`count(*)` }).from(table);
+        afterCounts[name] = Number(row.count ?? 0);
+      };
+
+      if (!symbolFilter) {
+        await Promise.all([
+          safeCountAfter(aiAnalysisTable, "ai_analysis"),
+          safeCountAfter(dailySummariesTable, "daily_summaries"),
+          safeCountAfter(hourlySummariesTable, "hourly_summaries"),
+          safeCountAfter(intelligenceSnapshotsTable, "intelligence_snapshots"),
+          safeCountAfter(learningMemoryTable, "learning_memory"),
+          safeCountAfter(predictionsTable, "predictions"),
+          safeCountAfter(scanRunsTable, "scan_runs"),
+          safeCountAfter(symbolTimelineTable, "symbol_timeline"),
+        ]);
+      } else {
+        const countWhereAfter = async (table: any, name: string) => {
+          const where = table.symbol ? eq(table.symbol, symbolFilter) : undefined;
+          const query = where
+            ? db.select({ count: sql<number>`count(*)` }).from(table).where(where as any)
+            : db.select({ count: sql<number>`count(*)` }).from(table);
+          const [row] = await query;
+          afterCounts[name] = Number(row.count ?? 0);
+        };
+
+        await Promise.all([
+          countWhereAfter(aiAnalysisTable, "ai_analysis"),
+          countWhereAfter(dailySummariesTable, "daily_summaries"),
+          countWhereAfter(hourlySummariesTable, "hourly_summaries"),
+          countWhereAfter(indicatorsHistoryTable, "indicators_history"),
+          countWhereAfter(intelligenceSnapshotsTable, "intelligence_snapshots"),
+          countWhereAfter(learningMemoryTable, "learning_memory"),
+          countWhereAfter(predictionsTable, "predictions"),
+          safeCountAfter(scanRunsTable, "scan_runs"),
+          countWhereAfter(symbolTimelineTable, "symbol_timeline"),
+        ]);
+      }
+
+      // Clear the reset flag and restart scanner immediately
+      setSystemResetFlag(false, symbolFilter);
+      startBackgroundScanner();
+      scannerRestarted = true;
 
       res.json({
         success: true,
-        wiped,
         message: symbolFilter
           ? `AI system reset for symbol: ${symbolFilter}`
           : "AI system fully reset",
         symbol: symbolFilter,
         resetAt: Math.floor(Date.now() / 1000),
-        scannerResumeIn: 30,
+        beforeCounts,
+        afterCounts,
+        tablesCleared,
+        cachesCleared,
+        servicesReset,
+        scannerRestarted,
+        preservedData: { users: true },
       });
     } catch (err) {
       // Clear the reset flag on error

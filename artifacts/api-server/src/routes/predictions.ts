@@ -45,8 +45,16 @@ function resolveCloseAtWindowEndEpoch(candles: Awaited<ReturnType<typeof getCand
   return last;
 }
 
-// Rate limiting storage (userId -> symbol -> lastPredictionTimestamp)
+/**
+ * Rate limiting storage (userId -> symbol -> lastPredictionTimestamp)
+ * NOTE: This is in-memory and must be cleared during system reset to avoid
+ * post-reset prediction throttling “ghost state”.
+ */
 const lastPredictionTimes = new Map<string, Map<string, number>>();
+
+export function clearPredictionRateLimits(): void {
+  lastPredictionTimes.clear();
+}
 
 /* -------------------------------------------------------
    RATE LIMIT HELPER
@@ -98,84 +106,6 @@ function formatPrediction(r: typeof predictionsTable.$inferSelect) {
 /* -------------------------------------------------------
    CORE EVALUATION (WRITE ONLY - NO GET ROUTES CALL IT)
 ------------------------------------------------------- */
-async function autoEvaluatePending(userId: string, symbol: string): Promise<void> {
-  try {
-    const pending = await db
-      .select()
-      .from(predictionsTable)
-      .where(
-        and(
-          eq(predictionsTable.symbol, symbol),
-          eq(predictionsTable.userId, userId),
-          isNull(predictionsTable.outcome),
-        ),
-      )
-      .orderBy(desc(predictionsTable.createdAt))
-      .limit(20);
-
-    const nowS = Math.floor(Date.now() / 1000);
-
-    for (const pred of pending) {
-      // Window end must be derived from expiresAt (DB source of truth)
-      const windowEndS = pred.expiresAt ?? null;
-      if (!windowEndS) continue;
-
-      // Only evaluate at/after window end
-      if (nowS < windowEndS) continue;
-
-      const intervalSeconds = intervalToSeconds(pred.interval);
-      if (!intervalSeconds) continue;
-
-      // We need candles whose last candle can represent "close at window end"
-      // Use the same granularity as interval seconds.
-      const windowEndEpochMs = windowEndS * 1000;
-
-      const candles = await getCandles(symbol, intervalSeconds, 200);
-      if (!candles || candles.length < 1) continue;
-
-      const closeCandle = resolveCloseAtWindowEndEpoch(candles, windowEndEpochMs);
-      if (!closeCandle) continue;
-
-      const closeAtWindowEnd = closeCandle.close;
-
-      let outcome: "correct" | "incorrect";
-      if (pred.direction === "rise") {
-        outcome = closeAtWindowEnd > pred.entryPrice ? "correct" : "incorrect";
-      } else if (pred.direction === "fall") {
-        outcome = closeAtWindowEnd < pred.entryPrice ? "correct" : "incorrect";
-      } else {
-        continue;
-      }
-
-      await db
-        .update(predictionsTable)
-        .set({
-          outcome,
-          exitPrice: closeAtWindowEnd,
-          resolvedAt: nowS,
-        })
-        .where(
-          and(eq(predictionsTable.id, pred.id), isNull(predictionsTable.outcome)),
-        );
-
-      await db.insert(learningMemoryTable).values({
-        userId: pred.userId,
-        symbol: pred.symbol,
-        patternType: (pred.indicators as any)?.patternName ?? "prediction_outcome",
-        patternData: {
-          direction: pred.direction,
-          confidence: pred.confidence,
-          marketState: pred.marketState,
-          indicators: pred.indicators,
-        },
-        outcome,
-        accuracy: outcome === "correct" ? pred.confidence : 100 - pred.confidence,
-      });
-    }
-  } catch (err) {
-    logger.error({ err, userId, symbol }, "Auto-evaluation failed");
-  }
-}
 
 /* -------------------------------------------------------
    GET PREDICTIONS (READ ONLY - NO SIDE EFFECTS)

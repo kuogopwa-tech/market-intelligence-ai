@@ -1,0 +1,6 @@
+ai:
+  primary:
+    model: deepseek-v4-pro
+
+  realtime:
+    model: deepseek-v4-flash

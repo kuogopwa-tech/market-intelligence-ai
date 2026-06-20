@@ -1,25 +1,17 @@
-﻿{
+{
   "version": 2,
   "framework": null,
   "buildCommand": "pnpm run build:vercel",
   "outputDirectory": "artifacts/deriv-analyst/dist/public",
   "installCommand": "pnpm install",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/index.ts"
+      "source": "/api/:path*",
+      "destination": "/api/index.ts"
     },
     {
-      "src": "/_next/(.*)",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/(?!api)(?!.*\\.[a-zA-Z0-9]+$)(.*)",
-      "dest": "/index.html"
+      "source": "/:path*",
+      "destination": "/index.html"
     }
   ]
 }

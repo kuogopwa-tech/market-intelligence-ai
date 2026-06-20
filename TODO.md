@@ -1,44 +1,24 @@
-# TODO - Adaptive Spike Detection Refactor
-
-## GOAL
-Eliminate incorrect "Spike Risk" classification caused by global ATR threshold (0.002) and replace with adaptive per-symbol volatility normalization.
-
-## TASKS
-
-### Phase 1: indicators.ts - Core Changes
-- [ ] 1. Add `calcATRHistory()` function to calculate rolling ATR series
-- [ ] 2. Add `getAvgATR20()` function to calculate 20-period average ATR
-- [ ] 3. Add `detectVolatilityState()` function with classification rules:
-  - spikeRatio < 1.2: "Normal"
-  - spikeRatio >= 1.2 && < 1.5: "Elevated"
-  - spikeRatio >= 1.5 && < 2.0: "High"
-  - spikeRatio >= 2.0: "Spike Risk"
-- [ ] 4. Update `detectMarketCondition()` to use adaptive spike detection
-- [ ] 5. Add debug output fields to return: currentATR, avgATR20, spikeRatio, volatilityState
-
-### Phase 2: signalEngine.ts - Logic Updates
-- [ ] 6. Update marketState logic: only set "Spike Risk" when volatilityState === "Spike Risk"
-- [ ] 7. Reduce spike penalty impact (max 10-15 points instead of dominating)
-- [ ] 8. Update riskScore calculation to reduce spike dominance
-
-### Phase 3: scanner.ts - Integration
-- [ ] 9. Pass ATR debug data through to scan results (optional)
-
-### Phase 4: Testing
-- [ ] 10. Verify web runner works after changes
-- [ ] 11. Test adaptive spike detection across different symbol types
-
-## CLASSIFICATION RULES (Final)
-```
-spikeRatio = currentATR / avgATR20
-
-if spikeRatio < 1.2:       volatilityState = "Normal"
-if spikeRatio >= 1.2 && < 1.5: volatilityState = "Elevated"
-if spikeRatio >= 1.5 && < 2.0: volatilityState = "High"
-if spikeRatio >= 2.0:        volatilityState = "Spike Risk"
-```
-
-## OUTPUT FILES
-- indicators.ts
-- signalEngine.ts
-- scanner.ts (if affected)
+- [ ] PHASE 1 backend hardening: add reset/clear methods
+  - [ ] backgroundScanner.ts: resetBackgroundScannerState()
+  - [ ] aiService.ts: clearAnalysisCache()
+  - [ ] derivWs.ts: clearDerivCaches() (+ ensure warmupCache doesn’t repopulate during reset)
+  - [ ] predictions.ts: clearPredictionRateLimits()
+  - [ ] admin.ts: clearActiveUserTracking() (+ stop admin interval if needed)
+- [ ] PHASE 1 backend: update POST /system/reset-all in artifacts/api-server/src/routes/system.ts
+  - [ ] await stopBackgroundScanner()
+  - [ ] collect beforeCounts
+  - [ ] transaction deletes/clears all AI-learning tables (full + symbol-specific)
+  - [ ] clear caches/maps/scheduler state + restart background scanner
+  - [ ] return structured report (beforeCounts/afterCounts/cachesCleared/servicesReset/scannerRestarted/wiped tables/preserved users)
+- [ ] PHASE 2 frontend: add Factory Reset UI to frontend/src/pages/SettingsPage.tsx
+  - [ ] confirmation dialog (type RESET)
+  - [ ] disable while running
+  - [ ] call systemApi.resetAll()
+  - [ ] show returned stats
+- [ ] PHASE 3 runtime validation (manual evidence)
+  - [ ] POST /system/reset-all and capture response
+  - [ ] verify SQL row counts are zero for specified tables
+  - [ ] verify in-memory cache/map/set sizes are zero
+  - [ ] verify scanner stopped during reset and restarted after
+  - [ ] reload frontend pages: Dashboard, Analytics, Intelligence Hub, Memory, Predictions
+- [ ] Produce final report: reset UI location, endpoint location, tables cleared, caches/services reset, files modified, data preserved, remaining risks
