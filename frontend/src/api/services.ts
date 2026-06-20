@@ -67,14 +67,14 @@ export const aiApi = {
 };
 
 export const intelligenceApi = {
-  status: async () => (await api.get("/intelligence/status")).data,
+  status: async () => (await api.get("intelligence/status")).data,
   snapshots: async (symbol: string, limit = 200) =>
-    (await api.get(`/intelligence/snapshots/${symbol}`, { params: { limit } })).data,
-  hourly: async (symbol: string) => (await api.get(`/intelligence/hourly/${symbol}`)).data,
-  daily: async (symbol: string) => (await api.get(`/intelligence/daily/${symbol}`)).data,
+    (await api.get(`intelligence/snapshots/${symbol}`, { params: { limit } })).data,
+  hourly: async (symbol: string) => (await api.get(`intelligence/hourly/${symbol}`)).data,
+  daily: async (symbol: string) => (await api.get(`intelligence/daily/${symbol}`)).data,
   evolution: async (symbol: string, limit = 50) =>
-    (await api.get(`/intelligence/evolution/${symbol}`, { params: { limit } })).data,
-  aggregated: async () => (await api.get("/intelligence/aggregated")).data,
+    (await api.get(`intelligence/evolution/${symbol}`, { params: { limit } })).data,
+  aggregated: async () => (await api.get("intelligence/aggregated")).data,
 };
 
 export const analyticsApi = {

@@ -2,31 +2,23 @@
 import { db } from "@workspace/db";
 import {
   intelligenceSnapshotsTable,
-  hourlySummariesTable,
   dailySummariesTable,
   learningMemoryTable,
   scanRunsTable,
 } from "@workspace/db";
-import { eq, desc, gte, asc, and } from "drizzle-orm";
-import { getSchedulerStatus } from "../lib/backgroundScanner.js";
+import { eq, desc, gte, asc, and, count } from "drizzle-orm";
 import { getTimingModel } from "../lib/timingModel.js";
 import { SUPPORTED_SYMBOLS } from "../lib/derivWs.js";
 
 const router: Router = Router();
 
-// â”€â”€ GET /intelligence/status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ GET /intelligence/status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 router.get("/intelligence/status", async (req, res) => {
   try {
-    const sched = getSchedulerStatus();
+    const scanIntervalMs = parseInt(process.env["SCAN_INTERVAL_MS"] ?? "300000", 10);
 
-    // Count total snapshots
-    const totalSnapshotsResult = await db
-      .select()
-      .from(intelligenceSnapshotsTable)
-      .limit(1);
-
-    // Get oldest snapshot to compute depth
+    // Get oldest snapshot to compute depth (kept as-is)
     const oldest = await db
       .select({ snapshotAt: intelligenceSnapshotsTable.snapshotAt })
       .from(intelligenceSnapshotsTable)
@@ -34,12 +26,8 @@ router.get("/intelligence/status", async (req, res) => {
       .limit(1);
 
     const oldestAt = oldest[0]?.snapshotAt ?? null;
-    const historicalDepthMs = oldestAt
-      ? Date.now() - oldestAt.getTime()
-      : null;
-    const historicalDepthHours = historicalDepthMs
-      ? Math.round(historicalDepthMs / 3600000)
-      : 0;
+    const historicalDepthMs = oldestAt ? Date.now() - oldestAt.getTime() : null;
+    const historicalDepthHours = historicalDepthMs ? Math.round(historicalDepthMs / 3600000) : 0;
     const historicalDepthDays = Math.floor(historicalDepthHours / 24);
 
     // Fetch recent scan runs (last 10)
@@ -49,7 +37,7 @@ router.get("/intelligence/status", async (req, res) => {
       .orderBy(desc(scanRunsTable.startedAt))
       .limit(10);
 
-    // Count distinct symbols with data
+    // Count distinct symbols with data (kept as-is)
     const symbolsWithData = new Set<string>();
     const recentSnaps = await db
       .select({ symbol: intelligenceSnapshotsTable.symbol })
@@ -58,19 +46,54 @@ router.get("/intelligence/status", async (req, res) => {
       .limit(200);
     for (const s of recentSnaps) symbolsWithData.add(s.symbol);
 
-    // Uptime seconds
-    const uptimeMs = sched.startedAt ? Date.now() - sched.startedAt : 0;
+    // Persisted totals / last run derived from scan_runs table
+    const totalScans = await db
+      .select({ count: count() })
+      .from(scanRunsTable);
+
+    // Drizzle/Postgres may return count as string/number/bigint depending on driver/runtime.
+    // Convert deterministically without relying on Number() coercion.
+    const totalScansValue = parseInt(String(totalScans[0]?.count ?? "0"), 10);
+
+    const latestRun = await db
+      .select()
+      .from(scanRunsTable)
+      .orderBy(desc(scanRunsTable.startedAt))
+      .limit(1);
+
+    const lastRun = latestRun[0] ?? null;
+
+    const running = !!lastRun && lastRun.completedAt === null;
+    const isScanning = running; // in serverless, in-memory locks don't persist; derive best-effort from DB row
+
+    const lastScanAt = lastRun
+      ? Math.floor(lastRun.completedAt ? lastRun.completedAt.getTime() / 1000 : lastRun.startedAt.getTime() / 1000)
+      : null;
+
+    const lastLatencyMs = lastRun?.durationMs ?? null;
+    const lastError = lastRun?.error ?? null;
+
+    const lastCompletedAtMs = lastRun?.completedAt ? lastRun.completedAt.getTime() : null;
+    const lastBaseMs = lastCompletedAtMs ?? (lastRun ? lastRun.startedAt.getTime() : null);
+
+    const nextScanAt =
+      lastBaseMs != null ? Math.floor((lastBaseMs + scanIntervalMs) / 1000) : null;
+
+    // UptimeSeconds is now derived from DB (fallback to 0 if no runs).
+    // If you prefer “time since last scan started”, this matches lastBaseMs.
+    const uptimeSeconds =
+      lastRun?.startedAt ? Math.max(0, Math.floor((Date.now() - lastRun.startedAt.getTime()) / 1000)) : 0;
 
     res.json({
-      running: sched.running,
-      isScanning: sched.isScanning,
-      lastScanAt: sched.lastScanAt ? Math.floor(sched.lastScanAt / 1000) : null,
-      nextScanAt: sched.nextScanAt ? Math.floor(sched.nextScanAt / 1000) : null,
-      totalScans: sched.totalScans,
-      lastLatencyMs: sched.lastLatencyMs,
-      lastError: sched.lastError,
-      intervalMs: sched.intervalMs,
-      uptimeSeconds: Math.floor(uptimeMs / 1000),
+      running,
+      isScanning,
+      lastScanAt,
+      nextScanAt,
+      totalScans: totalScansValue,
+      lastLatencyMs,
+      lastError,
+      intervalMs: scanIntervalMs,
+      uptimeSeconds,
       historicalDepthHours,
       historicalDepthDays,
       symbolsTracked: symbolsWithData.size,
@@ -78,9 +101,7 @@ router.get("/intelligence/status", async (req, res) => {
       recentRuns: recentRuns.map((r) => ({
         id: r.id,
         startedAt: Math.floor(r.startedAt.getTime() / 1000),
-        completedAt: r.completedAt
-          ? Math.floor(r.completedAt.getTime() / 1000)
-          : null,
+        completedAt: r.completedAt ? Math.floor(r.completedAt.getTime() / 1000) : null,
         durationMs: r.durationMs,
         symbolsScanned: r.symbolsScanned,
         symbolsSucceeded: r.symbolsSucceeded,
