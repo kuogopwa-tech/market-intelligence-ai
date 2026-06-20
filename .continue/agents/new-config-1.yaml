@@ -1,0 +1,4 @@
+providers:
+  deepseek:
+    baseUrl: https://api.deepseek.com
+    apiKey: sk-913bc898535445618c7db64855b59372
