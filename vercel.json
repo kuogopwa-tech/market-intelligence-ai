@@ -3,15 +3,23 @@
   "framework": null,
   "buildCommand": "pnpm run build:vercel",
   "outputDirectory": "artifacts/deriv-analyst/dist/public",
-  "installCommand": "pnpm install",
-  "rewrites": [
+  "installCommand": "corepack enable && corepack prepare pnpm@10.34.1 --activate && pnpm install --frozen-lockfile",
+
+  "builds": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/index.ts"
+      "src": "artifacts/api-server/dist/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "artifacts/api-server/dist/index.js"
     },
     {
-      "source": "/:path*",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }

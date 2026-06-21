@@ -173,7 +173,7 @@ function StatusCard({ status }: { status: IntelligenceStatus | null }) {
     );
   }
 
-  const isHealthy = status.running && !status.lastError;
+  const hasError = Boolean(status.lastError);
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
@@ -185,13 +185,13 @@ function StatusCard({ status }: { status: IntelligenceStatus | null }) {
             <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-cyan-500/40 bg-cyan-500/10 text-cyan-300">
               <RefreshCw className="w-3 h-3 animate-spin" /> Scanning…
             </span>
-          ) : isHealthy ? (
-            <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-green-500/40 bg-green-500/10 text-green-300">
-              <CheckCircle2 className="w-3 h-3" /> Active
-            </span>
-          ) : (
+          ) : hasError ? (
             <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-red-500/40 bg-red-500/10 text-red-300">
               <XCircle className="w-3 h-3" /> Error
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-green-500/40 bg-green-500/10 text-green-300">
+              <CheckCircle2 className="w-3 h-3" /> Active
             </span>
           )}
         </div>

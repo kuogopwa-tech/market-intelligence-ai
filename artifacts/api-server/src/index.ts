@@ -43,6 +43,23 @@ if (process.env.NODE_ENV !== "production") {
     console.log("---------------------------\n");
 
     if (dbConnected) {
+      // Fail-fast safety checks (DB identity + schema drift)
+      try {
+        const { runStartupSafetyChecks } = await import("./lib/learningMemorySafety.js");
+        const result = await runStartupSafetyChecks();
+
+        logger.info(
+          {
+            dbIdentityOk: result.dbIdentityOk,
+            learningMemorySchemaOk: result.learningMemorySchemaOk,
+          },
+          "Startup safety checks passed"
+        );
+      } catch (err) {
+        logger.error({ err }, "Startup safety checks failed (fail-fast).");
+        process.exit(1);
+      }
+
       startBackgroundScanner();
     } else {
       logger.warn("Background scanner disabled because database is unreachable.");

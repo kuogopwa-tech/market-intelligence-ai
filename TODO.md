@@ -1,24 +1,43 @@
-- [ ] PHASE 1 backend hardening: add reset/clear methods
-  - [ ] backgroundScanner.ts: resetBackgroundScannerState()
-  - [ ] aiService.ts: clearAnalysisCache()
-  - [ ] derivWs.ts: clearDerivCaches() (+ ensure warmupCache doesn’t repopulate during reset)
-  - [ ] predictions.ts: clearPredictionRateLimits()
-  - [ ] admin.ts: clearActiveUserTracking() (+ stop admin interval if needed)
-- [ ] PHASE 1 backend: update POST /system/reset-all in artifacts/api-server/src/routes/system.ts
-  - [ ] await stopBackgroundScanner()
-  - [ ] collect beforeCounts
-  - [ ] transaction deletes/clears all AI-learning tables (full + symbol-specific)
-  - [ ] clear caches/maps/scheduler state + restart background scanner
-  - [ ] return structured report (beforeCounts/afterCounts/cachesCleared/servicesReset/scannerRestarted/wiped tables/preserved users)
-- [ ] PHASE 2 frontend: add Factory Reset UI to frontend/src/pages/SettingsPage.tsx
-  - [ ] confirmation dialog (type RESET)
-  - [ ] disable while running
-  - [ ] call systemApi.resetAll()
-  - [ ] show returned stats
-- [ ] PHASE 3 runtime validation (manual evidence)
-  - [ ] POST /system/reset-all and capture response
-  - [ ] verify SQL row counts are zero for specified tables
-  - [ ] verify in-memory cache/map/set sizes are zero
-  - [ ] verify scanner stopped during reset and restarted after
-  - [ ] reload frontend pages: Dashboard, Analytics, Intelligence Hub, Memory, Predictions
-- [ ] Produce final report: reset UI location, endpoint location, tables cleared, caches/services reset, files modified, data preserved, remaining risks
+# TODO — Fix Background Intelligence Engine Error False Positive
+
+## Root cause
+The deriv-analyst UI “Background Intelligence Engine” status card incorrectly maps the **idle/success** state as **Error**.
+
+Specifically, the UI considers the engine “healthy/active” only when:
+- `status.running === true` AND
+- `status.lastError` is falsy
+
+When scans complete, backend sets:
+- `running: false`
+- `isScanning: false`
+- `lastError: null`
+
+However, because `status.running` is `false`, the UI derives `isHealthy = false` and therefore renders **Error** even though the backend is healthy.
+
+## Evidence
+- Backend is healthy and continuously returns 200:
+  - `GET /api/intelligence/status` returns:
+    - `running: false`
+    - `isScanning: false`
+    - `lastError: null`
+    - `totalScans: 114`
+- Background scans complete successfully:
+  - `succeeded: 13`
+  - `failed: 0`
+- File being changed (UI only):
+  - `artifacts/deriv-analyst/src/pages/intelligence.tsx`
+- Scope:
+  - UI state mapping only
+  - No backend/API/database changes
+
+## Verification expected after fix
+- Confirm “Background Intelligence Engine” no longer shows **Error** for:
+  - `running=false + lastError=null`
+- Confirm expected transitions:
+  - idle/success → **Active**
+  - scanning → **Scanning…**
+  - error → **Error**
+
+## Notes / Constraints
+- Do not change backend intelligence route / scan engine / DB schema.
+- Modify only the StatusCard state mapping logic.

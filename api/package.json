@@ -1,7 +1,0 @@
-{
-  "name": "api",
-  "version": "1.0.0",
-  "type": "module",
-  "private": true,
-  "description": "Vercel serverless API functions - ESM only"
-}
