@@ -16,8 +16,18 @@ export const predictionsTable = pgTable("predictions", {
   analysisId: integer("analysis_id"),
   marketState: text("market_state"),
   indicators: jsonb("indicators").notNull().default({}),
+
+  // Prediction timing (production-ready)
+  // resolveAt = server-created_at + PREDICTION_WINDOW_SECONDS
+  resolveAt: bigint("resolve_at", { mode: "number" }),
+  status: text("status", {
+    enum: ["pending", "correct", "incorrect"],
+  }).notNull().default("pending"),
+
+  // Legacy fields still used for auto-resolution and backwards compatibility
   resolvedAt: bigint("resolved_at", { mode: "number" }),
   expiresAt: bigint("expires_at", { mode: "number" }),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

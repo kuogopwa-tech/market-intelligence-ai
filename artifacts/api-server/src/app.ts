@@ -62,5 +62,34 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     });
 });
 
+// -------- Global API Error Handler (structured JSON + timestamp) --------
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  const ts = new Date().toISOString();
+
+  // Log with pino (if available)
+  try {
+    logger.error({ err, reqId: (req as any).id }, "API route error");
+  } catch {
+    // ignore
+  }
+
+  const statusCode = Number.isFinite(err?.statusCode)
+    ? err.statusCode
+    : Number.isFinite(err?.status)
+      ? err.status
+      : 500;
+
+  res.status(statusCode).json({
+    error: {
+      message: err?.message ?? "Internal Server Error",
+      code: err?.code ?? "INTERNAL_ERROR",
+      timestamp: ts,
+      path: req.path,
+      method: req.method,
+      requestId: (req as any).id ?? undefined,
+    },
+  });
+});
+
 export default app;
 

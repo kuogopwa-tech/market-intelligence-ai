@@ -70,8 +70,8 @@ export async function runAutoResolveExpiredPredictions(
   const limit = options.limit ?? 500;
   const nowS = Math.floor(Date.now() / 1000);
 
-  // DB filter: outcome is still NULL, and window has elapsed (expiresAt <= now)
-  // NOTE: expiresAt must be non-null for evaluation.
+  // DB filter: outcome is still NULL, and resolveAt has elapsed (resolveAt <= now)
+  // NOTE: resolveAt must be non-null for evaluation.
   const pending = await db
     .select()
     .from(predictionsTable)
@@ -87,8 +87,8 @@ export async function runAutoResolveExpiredPredictions(
           ? eq(predictionsTable.symbol, options.symbol)
           : undefined,
 
-        sql`${predictionsTable.expiresAt} IS NOT NULL`,
-        sql`${predictionsTable.expiresAt} <= ${nowS}`
+        sql`${(predictionsTable as any).resolveAt ?? (predictionsTable as any).resolve_at} IS NOT NULL`,
+        sql`${(predictionsTable as any).resolveAt ?? (predictionsTable as any).resolve_at} <= ${nowS}`
       )
     )
     .orderBy(desc(predictionsTable.createdAt))
@@ -109,7 +109,11 @@ export async function runAutoResolveExpiredPredictions(
   let resolvedCount = 0;
 
   for (const pred of candidates) {
-    const windowEndS = pred.expiresAt ?? null;
+    const windowEndS =
+      (pred as any).resolveAt ??
+      (pred as any).resolve_at ??
+      pred.expiresAt ??
+      null;
     if (!windowEndS) continue;
     if (nowS < windowEndS) continue;
 
@@ -146,6 +150,7 @@ export async function runAutoResolveExpiredPredictions(
       .update(predictionsTable)
       .set({
         outcome,
+        status: outcome,
         exitPrice: closeAtWindowEnd,
         resolvedAt: nowS,
       })

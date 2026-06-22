@@ -14,6 +14,18 @@ const router: Router = Router();
 
 const PREDICTION_COOLDOWN_MS = 30000; // 30 seconds cooldown
 
+// Production timing window (seconds)
+// Prefer env override on server, fallback to 30s per requirements.
+const PREDICTION_WINDOW_SECONDS =
+  process.env.PREDICTION_WINDOW_SECONDS
+    ? Math.max(1, parseInt(process.env.PREDICTION_WINDOW_SECONDS, 10))
+    : 30;
+
+function secondsRemainingFromResolveAt(resolveAtS: number, nowMs = Date.now()): number {
+  const remainingMs = resolveAtS * 1000 - nowMs;
+  return Math.max(0, Math.ceil(remainingMs / 1000));
+}
+
 function intervalToSeconds(interval: string): number | null {
   const normalized = interval.trim().toLowerCase();
 
@@ -84,6 +96,23 @@ function checkRateLimit(userId: string, symbol: string): { allowed: boolean; rem
    FORMATTER
 ------------------------------------------------------- */
 function formatPrediction(r: typeof predictionsTable.$inferSelect) {
+  const nowMs = Date.now();
+
+  const resolveAtS: number | null =
+    // New timing field
+    (r as any).resolveAt ?? // drizzle may map bigint columns to number
+    (r as any).resolve_at ?? // fallback if column name maps
+    null;
+
+  const status: "pending" | "correct" | "incorrect" =
+    (r as any).status ??
+    (r.outcome === "correct" ? "correct" : r.outcome === "incorrect" ? "incorrect" : "pending");
+
+  const secondsRemaining =
+    typeof resolveAtS === "number" && Number.isFinite(resolveAtS)
+      ? secondsRemainingFromResolveAt(resolveAtS, nowMs)
+      : null;
+
   return {
     id: r.id,
     userId: r.userId,
@@ -99,6 +128,12 @@ function formatPrediction(r: typeof predictionsTable.$inferSelect) {
     indicators: r.indicators as Record<string, unknown>,
     resolvedAt: r.resolvedAt,
     expiresAt: r.expiresAt ?? null,
+
+    // Required by production-ready timing spec
+    resolveAt: resolveAtS,
+    status,
+    secondsRemaining,
+
     createdAt: Math.floor(r.createdAt.getTime() / 1000),
   };
 }
@@ -137,6 +172,7 @@ router.get("/predictions", requireAuth(), async (req, res) => {
    GET PREDICTION ACCURACY STATS
 ------------------------------------------------------- */
 router.get("/predictions/accuracy", requireAuth(), async (req, res) => {
+  console.log("ACCURACY ROUTE HIT", req.originalUrl);
   const userId = req.user!.id;
 
   try {
@@ -160,6 +196,117 @@ router.get("/predictions/accuracy", requireAuth(), async (req, res) => {
   }
 });
 
+/**
+ * GET SINGLE PREDICTION WITH PRECISE RESOLUTION TIMING
+ * - If now < resolveAt => pending + secondsRemaining
+ * - If now >= resolveAt => evaluate outcome, update status/outcome/resolvedAt, return final
+ */
+router.get("/predictions/:id", requireAuth(), async (req, res) => {
+  console.log("ID ROUTE HIT", req.originalUrl, req.params.id);
+  const userId = req.user!.id;
+  const id = parseInt(String(req.params.id), 10);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: "Invalid prediction id" });
+  }
+
+  try {
+    const pred = await db
+      .select()
+      .from(predictionsTable)
+      .where(and(eq(predictionsTable.id, id), eq(predictionsTable.userId, userId)))
+      .limit(1);
+
+    const row = pred[0];
+    if (!row) return res.status(404).json({ error: "Prediction not found" });
+
+    const nowS = Math.floor(Date.now() / 1000);
+    const resolveAtS =
+      (row as any).resolveAt ?? (row as any).resolve_at ?? null;
+
+    // Not resolved yet
+    if (typeof resolveAtS === "number" && nowS < resolveAtS) {
+      return res.json({
+        ...formatPrediction(row),
+        status: "pending",
+      });
+    }
+
+    // Already resolved in DB
+    if (row.outcome === "correct") {
+      return res.json({
+        ...formatPrediction(row),
+        status: "correct",
+      });
+    }
+    if (row.outcome === "incorrect") {
+      return res.json({
+        ...formatPrediction(row),
+        status: "incorrect",
+      });
+    }
+
+    // Evaluate now (server time)
+    const expiresOrResolveEndEpochS = typeof resolveAtS === "number" ? resolveAtS : null;
+    if (!expiresOrResolveEndEpochS) {
+      return res.status(500).json({ error: "Prediction resolveAt missing" });
+    }
+
+    // Fetch candles for the symbol to pick close at resolveAt window end
+    const intervalSeconds = intervalToSeconds(row.interval) ?? 60;
+    const candles = await getCandles(row.symbol, intervalSeconds, 200);
+    const closeCandle = resolveCloseAtWindowEndEpoch(candles, expiresOrResolveEndEpochS * 1000);
+
+    if (!closeCandle) {
+      return res.status(503).json({ error: "Insufficient market data to resolve prediction" });
+    }
+
+    const closeAtResolveEnd = closeCandle.close;
+
+    let outcome: "correct" | "incorrect";
+    if (row.direction === "rise") outcome = closeAtResolveEnd > row.entryPrice ? "correct" : "incorrect";
+    else if (row.direction === "fall") outcome = closeAtResolveEnd < row.entryPrice ? "correct" : "incorrect";
+    else return res.status(400).json({ error: "Invalid prediction direction" });
+
+    // Atomic update (only if still pending/outcome null)
+    const updated = await db
+      .update(predictionsTable)
+      .set({
+        outcome,
+        status: outcome,
+        exitPrice: closeAtResolveEnd,
+        resolvedAt: nowS,
+      })
+      .where(and(eq(predictionsTable.id, id), eq(predictionsTable.userId, userId), isNull(predictionsTable.outcome)))
+      .returning();
+
+    const updatedRow = updated[0] ?? row;
+
+    // Insert learning_memory for resolved predictions
+    await db.insert(learningMemoryTable).values({
+      userId: updatedRow.userId,
+      symbol: updatedRow.symbol,
+      patternType: (updatedRow.indicators as any)?.patternName ?? "prediction_outcome",
+      patternData: {
+        direction: updatedRow.direction,
+        confidence: updatedRow.confidence,
+        marketState: updatedRow.marketState,
+        indicators: updatedRow.indicators,
+      },
+      outcome,
+      accuracy: outcome === "correct" ? updatedRow.confidence : 100 - updatedRow.confidence,
+    });
+
+    return res.json({
+      ...formatPrediction(updatedRow),
+      status: outcome,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to resolve prediction");
+    return res.status(500).json({ error: "Failed to fetch prediction" });
+  }
+});
+
 /* -------------------------------------------------------
    CREATE MANUAL PREDICTION (WRITE)
 ------------------------------------------------------- */
@@ -176,6 +323,11 @@ router.post("/predictions", requireAuth(), async (req, res) => {
   const intervalSeconds = intervalToSeconds(rawInterval);
   const safeIntervalSeconds = intervalSeconds ?? 60;
   const createdAtS = Math.floor(Date.now() / 1000);
+
+  // Required: resolveAt = server time + PREDICTION_WINDOW_SECONDS (configurable)
+  const resolveAtS = createdAtS + PREDICTION_WINDOW_SECONDS;
+
+  // Legacy expiresAt kept for backwards compatibility / auto-resolver
   const expiresAt = createdAtS + safeIntervalSeconds;
 
   try {
@@ -192,7 +344,12 @@ router.post("/predictions", requireAuth(), async (req, res) => {
         confidence,
         entryPrice,
         analysisId: analysisId ?? null,
+
         expiresAt,
+        // New fields
+        resolveAt: resolveAtS,
+        status: "pending",
+
         indicators: indicators as Record<string, unknown>,
       })
       .returning();
@@ -292,10 +449,7 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
   }
 
   try {
-    // Concurrency is enforced ONLY by PostgreSQL partial unique index.
-    // Do not SELECT-lock / check for existing pending prediction here.
-
-    // We fetch candles for the generation logic. Evaluation later is based on the stored expiresAt window.
+    // We fetch candles for the generation logic. Evaluation later is based on the stored resolveAt window.
     const candles = await getCandles(symbol, 60, 200);
     if (candles.length < 20) {
       return res.status(503).json({
@@ -315,20 +469,26 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
     if (signals.noTradeZone) {
       return res.status(200).json({
         generated: false,
-        reason: `⚠️ No-Trade Zone Detected: ${signals.marketState} market with ${signals.riskLevel?.toLowerCase() || "moderate"} risk. ${signalQuality.marketCleanliness || "Mixed"} conditions.`,
+        reason: `⚠️ No-Trade Zone Detected: ${signals.marketState} market with ${signals.riskLevel?.toLowerCase() || "moderate"} risk. ${
+          signalQuality.marketCleanliness || "Mixed"
+        } conditions.`,
         signals,
         signalQuality,
       });
     }
 
-    const direction: "rise" | "fall" = signals.bullishScore > signals.bearishScore ? "rise" : "fall";
+    const direction: "rise" | "fall" =
+      signals.bullishScore > signals.bearishScore ? "rise" : "fall";
     const confidence = Math.round(signals.confidence);
-    
+
     // Ensure confidence is within valid range
     const finalConfidence = Math.min(100, Math.max(0, confidence));
-    
+
     const createdAtS = Math.floor(Date.now() / 1000);
+
+    // Legacy window (expiresAt) and required production window (resolveAt)
     const expiresAt = createdAtS + intervalSeconds;
+    const resolveAt = createdAtS + PREDICTION_WINDOW_SECONDS;
 
     const [row] = await db
       .insert(predictionsTable)
@@ -340,7 +500,11 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
         confidence: finalConfidence,
         entryPrice: currentPrice,
         marketState: signals.marketState,
+
         expiresAt,
+        resolveAt,
+        status: "pending",
+
         indicators: {
           ...indicators,
           patternName: pattern.name,
@@ -365,16 +529,19 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
       })
       .returning();
 
-    logger.info({ 
-      userId, 
-      symbol, 
-      direction, 
-      confidence: finalConfidence,
-      entryPrice: currentPrice,
-      marketState: signals.marketState,
-      cleanSignalScore: signalQuality.cleanSignalScore,
-      predictionId: row.id 
-    }, "Auto prediction generated successfully");
+    logger.info(
+      {
+        userId,
+        symbol,
+        direction,
+        confidence: finalConfidence,
+        entryPrice: currentPrice,
+        marketState: signals.marketState,
+        cleanSignalScore: signalQuality.cleanSignalScore,
+        predictionId: row.id,
+      },
+      "Auto prediction generated successfully"
+    );
 
     return res.status(201).json({
       generated: true,
@@ -385,7 +552,6 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
   } catch (err: any) {
     // Handle duplicate key error gracefully
     if (err.code === "23505") {
-      // Unique index conflict => an active prediction already exists.
       return res.status(409).json({
         generated: false,
         duplicate: true,
@@ -395,9 +561,9 @@ router.post("/predictions/auto", requireAuth(), async (req, res) => {
     }
 
     req.log.error({ err, userId, symbol }, "Auto prediction failed");
-    return res.status(500).json({ 
-      generated: false, 
-      reason: "Failed to generate prediction. Please try again." 
+    return res.status(500).json({
+      generated: false,
+      reason: "Failed to generate prediction. Please try again.",
     });
   }
 });

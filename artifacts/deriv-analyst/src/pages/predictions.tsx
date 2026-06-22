@@ -16,6 +16,15 @@ import { Check, X, Clock, ArrowUpRight, ArrowDownRight, Zap, ShieldAlert, Refres
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+function formatCountdown(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0s";
+  const s = Math.floor(seconds);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return `${m}m ${rem}s`;
+}
+
 export default function Predictions() {
   const { selectedSymbol } = useAppStore();
   const queryClient = useQueryClient();
@@ -188,24 +197,33 @@ export default function Predictions() {
     };
   }, []);
 
-  const renderOutcomeBadge = (outcome?: string | null) => {
-    if (outcome === "correct") {
+  const renderTimingBadge = (pred: any) => {
+    const resolveAt = pred.resolveAt ?? null;
+    const status = pred.status ?? null;
+    const nowS = Math.floor(Date.now() / 1000);
+    const isPending = status === "pending" || (typeof resolveAt === "number" && nowS < resolveAt);
+
+    if (status === "correct" || pred.outcome === "correct") {
       return (
         <Badge className="bg-green-500/20 text-green-500 border-green-500/50 gap-1">
-          <Check className="h-3 w-3" /> Correct
+          <Check className="h-3 w-3" /> Resolved Correct
         </Badge>
       );
     }
-    if (outcome === "incorrect") {
+    if (status === "incorrect" || pred.outcome === "incorrect") {
       return (
         <Badge variant="destructive" className="bg-destructive/20 text-destructive border-destructive/50 gap-1">
-          <X className="h-3 w-3" /> Incorrect
+          <X className="h-3 w-3" /> Resolved Incorrect
         </Badge>
       );
     }
+
+    const resolveAtS = typeof resolveAt === "number" ? resolveAt : null;
+    const secondsRemaining = resolveAtS != null ? Math.max(0, resolveAtS - nowS) : null;
+
     return (
-      <Badge variant="outline" className="text-yellow-500 border-yellow-500/50 gap-1">
-        <Clock className="h-3 w-3" /> Pending
+      <Badge variant="outline" className="text-yellow-500 border-yellow-500/50 gap-1 bg-yellow-500/10">
+        <Clock className="h-3 w-3" /> Resolves in {secondsRemaining == null ? "—" : formatCountdown(secondsRemaining)}
       </Badge>
     );
   };
@@ -223,6 +241,13 @@ export default function Predictions() {
   };
 
   const accuracyPct = symbolStats ? safeFormat(symbolStats.accuracy) : safeFormat(uniqueAccuracy);
+
+  // Live UI tick for countdown
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => forceTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // Safe access to prediction properties
   const safePrediction = (pred: any) => ({
@@ -382,6 +407,7 @@ export default function Predictions() {
                       <TableHead className="font-semibold">Entry</TableHead>
                       <TableHead className="font-semibold">Confidence</TableHead>
                       <TableHead className="font-semibold">Market State</TableHead>
+                      <TableHead className="font-semibold">Timing</TableHead>
                       <TableHead className="font-semibold">Outcome</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -432,7 +458,25 @@ export default function Predictions() {
                               <span className="text-muted-foreground text-xs">—</span>
                             )}
                           </TableCell>
-                      <TableCell>{renderOutcomeBadge(safe.outcome)}</TableCell>
+                      <TableCell>{renderTimingBadge(safe)}</TableCell>
+                      <TableCell>
+                        {/* Keep existing outcome badge */}
+                        {safe.outcome ? (
+                          safe.outcome === "correct" ? (
+                            <Badge className="bg-green-500/20 text-green-500 border-green-500/50 gap-1">
+                              <Check className="h-3 w-3" /> Correct
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="bg-destructive/20 text-destructive border-destructive/50 gap-1">
+                              <X className="h-3 w-3" /> Incorrect
+                            </Badge>
+                          )
+                        ) : (
+                          <Badge variant="outline" className="text-yellow-500 border-yellow-500/50 gap-1">
+                            <Clock className="h-3 w-3" /> Pending
+                          </Badge>
+                        )}
+                      </TableCell>
                     </TableRow>
                       );
                     })}
