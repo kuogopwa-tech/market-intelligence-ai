@@ -1,13 +1,12 @@
 {
   "version": 2,
   "framework": null,
-
   "installCommand": "corepack enable && corepack prepare pnpm@10.34.1 --activate && pnpm install --frozen-lockfile",
 
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "artifacts/api-server/dist/index.js"
+      "destination": "/api/$1"
     },
     {
       "source": "/(.*)",
