@@ -3,21 +3,14 @@
   "framework": null,
   "installCommand": "corepack enable && corepack prepare pnpm@10.34.1 --activate && pnpm install --frozen-lockfile",
 
-  "builds": [
+  "rewrites": [
     {
-      "src": "artifacts/api-server/dist/index.js",
-      "use": "@vercel/node"
-    }
-  ],
-
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "artifacts/api-server/dist/index.js"
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
